@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>aOS · Coming soon</title>
+<meta name="description" content="Apps that do what you need to do. AllisonOS customizes your apps so what matters most is front and center. Break free. Coming soon.">
+<meta name="theme-color" content="#090B10">
+<meta property="og:type" content="website">
+<meta property="og:title" content="aOS · Break free">
+<meta property="og:description" content="Apps that do what you need to do. Coming soon.">
+<meta property="og:url" content="https://tomallison24.github.io/aos-teaser/">
+<meta property="og:image" content="https://tomallison24.github.io/aos-teaser/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tomallison24.github.io/aos-teaser/og.png">
+<link rel="preload" href="fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face { font-family: Inter; src: url("fonts/Inter.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  @font-face { font-family: "JetBrains Mono"; src: url("fonts/JetBrainsMono-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+</style>
+</head>
+<body>
+<style>
+  /* One continuous film, night to morning: a 1080x1920 stage scaled to fit the
+     phone, with the sky drawn edge to edge behind it. Single look on purpose
+     (it moves from dark to light itself), so every colour is set here. */
+  :root {
+    --night: #090B10;
+    --ink-light: #F3F4F8;
+    --ink-dark: #0B0B0F;
+    --glass: rgba(255,255,255,.74);
+    --edge: rgba(11,11,15,.08);
+    --pastel: linear-gradient(100deg, #6FA597 0%, #8193BC 34%, #BE918F 67%, #BC9C68 100%);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--night); color: var(--ink-light); font-family: var(--font); overflow: hidden;
+    -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
+  .bar { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); transform: translateX(-50%);
+    width: min(36vw, 160px); height: 2px; border-radius: 1px; background: rgba(140,140,150,.28); overflow: hidden; pointer-events: none; }
+  .bar i { display: block; height: 100%; width: 100%; background: var(--pastel); transform-origin: 0 50%; transform: scaleX(0); }
+  .pill { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 34px); transform: translateX(-50%);
+    font: 600 15px/1 var(--font); letter-spacing: -.01em; color: var(--ink-dark); background: var(--glass);
+    border: 1px solid var(--edge); border-radius: 999px; padding: 12px 20px;
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); cursor: pointer; }
+  .pill:focus-visible { outline: 2px solid #8193BC; outline-offset: 3px; }
+  .export .bar, .export .pill { display: none !important; }
+</style>
+
+<canvas id="film" role="img" aria-label="aOS1 teaser. Someone else decided what your apps can do. The aOS sparkle draws the stock apps into itself. Not anymore. An app is generated from a prompt. Built with AI from the ground up. Shaped by you. Custom to you and your family's needs. AllisonOS customizes your apps so what matters most is front and center. No two are alike. Declare your independence. AllisonOS becomes aOS. Break free. Coming soon."></canvas>
+<div class="bar" aria-hidden="true"><i id="progress"></i></div>
+<button class="pill" id="pill" type="button" hidden>Replay</button>
+
+<script>
+(() => {
+  'use strict';
+  const EXPORT = /export/.test(location.search);
+  if (EXPORT) document.documentElement.classList.add('export');
+  const DUR = 45, W0 = 1080, H0 = 1920, CX = 540, TAU = Math.PI * 2;
+  const FAM = '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, system-ui, sans-serif';
+  const MONO = 'ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace';
+  const cv = document.getElementById('film'), ctx = cv.getContext('2d');
+  const HAS_LS = 'letterSpacing' in ctx;
+
+  // ---------- small maths ----------
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const prog = (t, a, b) => clamp((t - a) / (b - a));
+  const ss = (t, a, b) => { const u = prog(t, a, b); return u * u * (3 - 2 * u); };
+  const eo = u => 1 - Math.pow(1 - u, 3);
+  const eio = u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+  const eback = u => { const c1 = 1.56, c3 = c1 + 1; return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2); };
+  const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, u) => a.map((v, i) => v + (b[i] - v) * u);
+  const rgba = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+  let seed = 1776;
+  const rnd = () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+
+  // ---------- Sea glass (from welcome.js): sea glass, mist, shell, sand ----------
+  const DARK = ['#A9D3C7', '#B9C6E0', '#E3C5C3', '#E9D6B4'].map(hex);   // the pastel on dark
+  const LIGHT = ['#6FA597', '#8193BC', '#BE918F', '#BC9C68'].map(hex);  // the pastel on light
+  const INK_L = hex('#F3F4F8'), INK_D = hex('#0B0B0F');
+  // colours follow the film's own clock (NOW), so a scene can run on a shifted clock and still match the sky
+  let NOW = 0;
+  const day = () => ss(NOW, 36.2, 37.9);
+  const pal = i => mix(DARK[i], LIGHT[i], day());
+  const tileCol = i => mix(mix(DARK[i], LIGHT[i], .4), LIGHT[i], day() * .6);   // deep enough for a white glyph
+  const ink = () => mix(INK_L, INK_D, ss(NOW, 36.6, 37.3));
+  const palAt = (u, t) => {
+    const s = [0, .34, .67, 1]; let k = 0; while (k < 2 && u > s[k + 1]) k++;
+    return mix(pal(k, t), pal(k + 1, t), clamp((u - s[k]) / (s[k + 1] - s[k])));
+  };
+  const pastel = (x0, x1, t) => {
+    const g = ctx.createLinearGradient(x0, 0, x1, 0);
+    [0, .34, .67, 1].forEach((s, i) => g.addColorStop(s, rgba(pal(i, t))));
+    return g;
+  };
+
+  // The sky: night, a long blue hour, then morning.
+  const SKY = [
+    [0, '#090B10', '#0E1117'], [11, '#0C0F16', '#141925'], [20, '#141A2C', '#262D45'],
+    [29, '#1F2742', '#4A4B67'], [35.8, '#27304F', '#6D6680'], [36.9, '#8090BC', '#DDB2A8'], [37.9, '#DCE3EF', '#F3E3D6'],
+    [40.5, '#EEF1F6', '#F6EEE6'], [45, '#F2F4F8', '#F7F1EA'],
+  ].map(([k, a, b]) => [k, hex(a), hex(b)]);
+  const sky = t => {
+    let i = 0; while (i < SKY.length - 2 && t > SKY[i + 1][0]) i++;
+    const [k0, a0, b0] = SKY[i], [k1, a1, b1] = SKY[i + 1];
+    const u = ss(t, k0, k1);
+    return [mix(a0, a1, u), mix(b0, b1, u)];
+  };
+
+  // ---------- stage ----------
+  let DPR = 1, CW = W0, CH = H0, S = 1, OX = 0, OY = 0, L = 0, R = W0, TOP = 0, B = H0;
+  function resize() {
+    DPR = EXPORT ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+    CW = window.innerWidth; CH = window.innerHeight;
+    cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR);
+    S = Math.min(CW / W0, CH / H0); OX = (CW - W0 * S) / 2; OY = (CH - H0 * S) / 2;
+    L = -OX / S; R = W0 + OX / S; TOP = -OY / S; B = H0 + OY / S;
+  }
+  const SPRITES = new Map();
+  function sprite(c) {
+    const key = c.map(v => v | 0).join(',');
+    if (SPRITES.has(key)) return SPRITES.get(key);
+    const s = document.createElement('canvas'); s.width = s.height = 128;
+    const g = s.getContext('2d'), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    r.addColorStop(0, rgba(c, 1)); r.addColorStop(.35, rgba(c, .45)); r.addColorStop(1, rgba(c, 0));
+    g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+    if (SPRITES.size > 400) SPRITES.clear();
+    SPRITES.set(key, s); return s;
+  }
+  const quant = c => c.map(v => Math.round(v / 6) * 6);
+  function glow(x, y, r, c, a) {
+    if (a <= .002 || r <= 0) return;
+    const ga = ctx.globalAlpha; ctx.globalAlpha = ga * a; ctx.drawImage(sprite(quant(c)), x - r, y - r, r * 2, r * 2); ctx.globalAlpha = ga;
+  }
+  function rrPath(x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  }
+  const rr = (x, y, w, h, r) => { ctx.beginPath(); rrPath(x, y, w, h, r); };
+  function star4(x, y, r, fill) {
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + i * Math.PI / 4, q = i % 2 ? r * .3 : r; ctx.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); }
+    ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+  }
+
+  // ---------- mist ----------
+  const MIST = Array.from({ length: 6 }, () => ({ x: rnd() * W0, y: 260 + rnd() * 1300, r: 380 + rnd() * 420, v: (rnd() - .5) * 26, a: .045 + rnd() * .05 }));
+  function drawMist(t) {
+    const env = ss(t, 0, 2.5) * (1 - ss(t, 19, 25));
+    if (env > 0) for (const m of MIST) glow(m.x + m.v * t, m.y, m.r, DARK[1], m.a * env);
+  }
+
+  // ---------- 1. a stock phone ----------
+  const PH = { cx: 540, cy: 800, w: 560, h: 1140, r: 84 }, IN = 16;
+  const SX = PH.cx - PH.w / 2 + IN, SY = PH.cy - PH.h / 2 + IN, SW = PH.w - IN * 2, SHT = PH.h - IN * 2;
+  const IS = 96, PIV = [540, 734], TGT = [540, 820], IMPACT = TGT, GROUND = 1300;
+  const zoomU = t => eio(prog(t, 5.0, 6.5));
+  const Zf = t => lerp(1, 2.1, zoomU(t));
+  const toScreen = (x, y, t) => { const Z = Zf(t), u = zoomU(t); return [(x - PIV[0]) * Z + PIV[0] + (TGT[0] - PIV[0]) * u, (y - PIV[1]) * Z + PIV[1] + (TGT[1] - PIV[1]) * u]; };
+  const GRIDG = ['mail', 'calendar', 'photo', 'camera', 'clock', 'pin', 'music', 'chat', 'play', 'book', 'bag', 'compass', 'search', 'bell', 'chart', 'lock', 'gear', 'phone', 'clock', 'photo'];
+  const ICONS = [];
+  const gap = (SW - 4 * IS) / 5;
+  GRIDG.forEach((g, i) => { const c = i % 4, r = (i / 4) | 0; ICONS.push({ g, x: SX + gap + c * (IS + gap) + IS / 2, y: SY + 168 + r * 160, label: 40 + rnd() * 26 }); });
+  ['phone', 'chat', 'compass', 'music'].forEach((g, c) => ICONS.push({ g, x: SX + gap + c * (IS + gap) + IS / 2, y: SY + SHT - 80, dock: true }));
+  ICONS.forEach((k, i) => {
+    k.i = i; k.sp = toScreen(k.x, k.y, 7);
+    k.ts = 7.1 + Math.min(1, Math.hypot(k.sp[0] - IMPACT[0], k.sp[1] - IMPACT[1]) / 1100) * 1.1 + (i % 3) * .05;   // drawn in, nearest first
+  });
+
+  function stock(name) {                 // generic stock-app symbols, about 44px across
+    const c = ctx; c.beginPath();
+    switch (name) {
+      case 'mail': c.rect(-20, -14, 40, 28); c.moveTo(-20, -14); c.lineTo(0, 3); c.lineTo(20, -14); break;
+      case 'camera': rrPath(-21, -12, 42, 29, 6); c.moveTo(8, 3); c.arc(0, 3, 8, 0, TAU); c.moveTo(-8, -12); c.lineTo(-5, -18); c.lineTo(5, -18); c.lineTo(8, -12); break;
+      case 'calendar': rrPath(-19, -16, 38, 35, 6); c.moveTo(-19, -6); c.lineTo(19, -6); c.moveTo(-9, -22); c.lineTo(-9, -12); c.moveTo(9, -22); c.lineTo(9, -12); break;
+      case 'clock': c.arc(0, 0, 19, 0, TAU); c.moveTo(0, 0); c.lineTo(0, -11); c.moveTo(0, 0); c.lineTo(8, 5); break;
+      case 'pin': c.moveTo(0, 21); c.bezierCurveTo(-8, 10, -17, 2, -17, -6); c.arc(0, -6, 17, Math.PI, 0); c.bezierCurveTo(17, 2, 8, 10, 0, 21); c.moveTo(6, -6); c.arc(0, -6, 6, 0, TAU); break;
+      case 'music': c.moveTo(-6, 13); c.lineTo(-6, -16); c.lineTo(14, -20); c.lineTo(14, 9); c.moveTo(-6, 13); c.arc(-11, 13, 5, 0, TAU); c.moveTo(14, 9); c.arc(9, 9, 5, 0, TAU); break;
+      case 'chat': rrPath(-21, -17, 42, 28, 10); c.moveTo(-9, 11); c.lineTo(-13, 19); c.lineTo(1, 11); break;
+      case 'gear': c.moveTo(9, 0); c.arc(0, 0, 9, 0, TAU); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; c.moveTo(Math.cos(a) * 14, Math.sin(a) * 14); c.lineTo(Math.cos(a) * 20, Math.sin(a) * 20); } break;
+      case 'bag': rrPath(-17, -8, 34, 28, 5); c.moveTo(-8, -8); c.arc(0, -8, 8, Math.PI, 0); break;
+      case 'photo': rrPath(-20, -16, 40, 32, 6); c.moveTo(-14, 10); c.lineTo(-4, -1); c.lineTo(4, 6); c.lineTo(9, 1); c.lineTo(15, 10); c.moveTo(12, -8); c.arc(9, -8, 3, 0, TAU); break;
+      case 'phone': rrPath(-11, -20, 22, 40, 6); c.moveTo(-4, 14); c.lineTo(4, 14); break;
+      case 'compass': c.arc(0, 0, 19, 0, TAU); c.moveTo(0, -12); c.lineTo(5, 0); c.lineTo(0, 12); c.lineTo(-5, 0); c.closePath(); break;
+      case 'play': rrPath(-20, -16, 40, 32, 8); c.moveTo(-5, -8); c.lineTo(9, 0); c.lineTo(-5, 8); c.closePath(); break;
+      case 'book': c.moveTo(0, -10); c.lineTo(0, 16); c.moveTo(0, -10); c.lineTo(-20, -14); c.lineTo(-20, 12); c.lineTo(0, 16); c.lineTo(20, 12); c.lineTo(20, -14); c.closePath(); break;
+      case 'search': c.arc(-4, -4, 12, 0, TAU); c.moveTo(5, 5); c.lineTo(17, 17); break;
+      case 'bell': c.moveTo(-15, 10); c.quadraticCurveTo(-14, -18, 0, -18); c.quadraticCurveTo(14, -18, 15, 10); c.closePath(); c.moveTo(4, 15); c.arc(0, 15, 4, 0, Math.PI); break;
+      case 'chart': c.moveTo(-14, 16); c.lineTo(-14, 4); c.moveTo(0, 16); c.lineTo(0, -12); c.moveTo(14, 16); c.lineTo(14, -2); break;
+      case 'lock': rrPath(-15, -4, 30, 24, 5); c.moveTo(-10, -4); c.arc(0, -4, 10, Math.PI, 0); break;
+    }
+    c.lineWidth = 4.2; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#A2A8B2'; c.stroke();
+  }
+  function stockIcon(g) {               // at the origin, in phone units
+    const gr = ctx.createLinearGradient(0, -IS / 2, 0, IS / 2); gr.addColorStop(0, '#3B3F48'); gr.addColorStop(1, '#2A2D34');
+    rr(-IS / 2, -IS / 2, IS, IS, 22); ctx.fillStyle = gr; ctx.fill();
+    stock(g);
+  }
+  function drawPhone(t) {
+    if (t > 9) return;
+    const a = ss(t, .1, 1.1), body = 1 - ss(t, 7.9, 8.9), rise = 30 * (1 - eo(prog(t, .1, 1.3)));
+    const Z = Zf(t), u = zoomU(t);
+    ctx.save();
+    ctx.translate(PIV[0] + (TGT[0] - PIV[0]) * u, PIV[1] + (TGT[1] - PIV[1]) * u + rise); ctx.scale(Z, Z); ctx.translate(-PIV[0], -PIV[1]);
+    ctx.globalAlpha = a * body;
+    rr(PH.cx - PH.w / 2, PH.cy - PH.h / 2, PH.w, PH.h, PH.r); ctx.fillStyle = '#14171E'; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.stroke();
+    rr(SX, SY, SW, SHT, PH.r - IN); ctx.fillStyle = '#0C0E13'; ctx.fill();
+    // status bar, page dots, dock
+    ctx.fillStyle = 'rgba(255,255,255,.26)';
+    rr(SX + 40, SY + 36, 64, 15, 7.5); ctx.fill();
+    rr(SX + SW - 82, SY + 34, 42, 19, 6); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(255,255,255,.26)'; ctx.stroke();
+    rr(SX + SW - 77, SY + 39, 28, 9, 3); ctx.fill();
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(SX + SW - 116 + i * 12, SY + 43, 3.5, 0, TAU); ctx.fill(); }
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(CX - 16 + i * 16, SY + SHT - 168, 4, 0, TAU); ctx.fillStyle = `rgba(255,255,255,${i ? .14 : .4})`; ctx.fill(); }
+    rr(SX + 16, SY + SHT - 140, SW - 32, 120, 42); ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.fill();
+    ctx.globalAlpha = 1;
+    for (const k of ICONS) {
+      const ia = ss(t, .35 + k.i * .03, .8 + k.i * .03) * a;
+      if (ia <= 0) continue;
+      ctx.globalAlpha = ia;
+      if (t < k.ts) { ctx.save(); ctx.translate(k.x, k.y); stockIcon(k.g); ctx.restore(); }
+      ctx.globalAlpha = ia * (1 - ss(t, k.ts, k.ts + .25));
+      if (!k.dock && t < k.ts + .25) { rr(k.x - k.label / 2, k.y + IS / 2 + 18, k.label, 10, 5); ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fill(); }
+    }
+    ctx.globalAlpha = 1; ctx.restore();
+  }
+  // ---------- 2. an app, generated: a prompt, then noise resolving into it, step by step ----------
+  const TB = 13.0;                          // the burst, on the seeds' own clock (the film plays it 4s later, at 17s)
+  const esine = u => .5 - .5 * Math.cos(Math.PI * u);
+  const FC = [540, 720], SEEDPT = IMPACT;   // the cloud comes out of the sparkle
+  // the app it generates: a squircle tile, its outline in Sea glass, its features forming inside
+  const GEN = [], AH = 210;
+  const sq = th => { const c = Math.cos(th), s2 = Math.sin(th); return [Math.sign(c) * Math.pow(Math.abs(c), .5) * AH, Math.sign(s2) * Math.pow(Math.abs(s2), .5) * AH]; };
+  const byX = x => clamp(Math.floor((x + AH) / (2 * AH) * 4), 0, 3);
+  { // the outline, evenly spaced along its length
+    const ND = 40000, dense = Array.from({ length: ND }, (_, i) => sq(i / ND * TAU)), cum = [0];
+    for (let i = 1; i <= ND; i++) { const p0 = dense[i - 1], p1 = dense[i % ND]; cum.push(cum[i - 1] + Math.hypot(p1[0] - p0[0], p1[1] - p0[1])); }
+    let j = 0;
+    for (let i = 0; i < 320; i++) { const L = i / 320 * cum[ND]; while (cum[j + 1] < L) j++; const [x, y] = dense[j]; GEN.push({ x: FC[0] + x, y: FC[1] + y, c: byX(x), sz: 1 }); }
+  }
+  for (let i = 0; i < 260; i++) {
+    let x, y; do { x = (rnd() * 2 - 1) * AH; y = (rnd() * 2 - 1) * AH; } while (Math.pow(Math.abs(x / AH), 4) + Math.pow(Math.abs(y / AH), 4) > .82);
+    GEN.push({ x: FC[0] + x, y: FC[1] + y, c: byX(x), sz: .6, al: .45 });
+  }
+  for (let i = 0; i < 90; i++) { const a = i / 90 * TAU; GEN.push({ x: FC[0] - 80 + Math.cos(a) * 62, y: FC[1] - 60 + Math.sin(a) * 62, w: 1, sz: 1 }); }
+  [44, 70, 56, 90].forEach((h, j) => { for (let i = 0; i < 18; i++) GEN.push({ x: FC[0] + 46 + j * 34, y: FC[1] - 10 - i / 17 * h, w: 1, sz: 1.1 }); });
+  [[64, 280], [118, 200]].forEach(([y, len]) => {
+    for (let i = 0; i < 50; i++) GEN.push({ x: FC[0] - 110 + i / 49 * len, y: FC[1] + y, w: 1, sz: 1 });
+    for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; GEN.push({ x: FC[0] - 140 + Math.cos(a) * 8, y: FC[1] + y + Math.sin(a) * 8, w: 1, sz: .9 }); }
+  });
+  GEN.forEach((p, k) => { p.k = k; p.sx = 140 + rnd() * 800; p.sy = 560 + rnd() * 720; p.ph = rnd() * TAU; });
+  const PROMPT = '> Apps that do what you need to do';
+  function drawGen(t) {
+    if (t < 10.8 || t > 20.5) return;
+    const pa = ss(t, 10.8, 11.0) * (1 - ss(t, 16.2, 16.8));
+    if (pa > 0) {                                          // what the person asks for
+      ctx.font = `500 40px ${MONO}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; if (HAS_LS) ctx.letterSpacing = '0px';
+      const n = Math.round(PROMPT.length * prog(t, 10.9, 12.0)), x0 = CX - ctx.measureText(PROMPT).width / 2, typed = PROMPT.slice(0, n);
+      ctx.fillStyle = rgba(INK_L, .85 * pa); ctx.fillText(typed, x0, 420);
+      if (t < 12.8 && Math.floor(t * 2.6) % 2 === 0) ctx.fillRect(x0 + ctx.measureText(typed).width + 4, 388, 4, 38);
+      if (t > 13.0) {
+        ctx.font = `500 30px ${MONO}`; ctx.fillStyle = rgba(INK_L, .45 * pa);
+        ctx.fillText(`step ${String(Math.round(esine(prog(t, 13.0, 16.0)) * 50)).padStart(2, '0')}/50`, x0, 476);
+      }
+    }
+    if (t > 15.9 && t < 17.3) glow(FC[0], FC[1], 330, DARK[1], .3 * ss(t, 15.9, 16.4) * (1 - ss(t, 16.9, 17.2)));
+    if (t < 12.2) return;
+    const s = esine(prog(t, 13.0, 16.0)), noise = Math.pow(1 - s, 1.4) * 42;
+    for (const p of GEN) {
+      const rise = eo(prog(t, 12.2 + (p.k % 25) * .012, 13.0 + (p.k % 25) * .012));
+      const x = lerp(lerp(SEEDPT[0], p.sx, rise), p.x, s) + noise * Math.sin(t * 9 + p.ph);
+      const y = lerp(lerp(SEEDPT[1], p.sy, rise), p.y, s) + noise * Math.cos(t * 8 + p.ph);
+      const out = ss(t, 17.0, 17.35);
+      const a = Math.min(1, rise * 1.5) * (1 - out) * (.45 + .55 * s) * (p.al ? lerp(1, p.al, s) : 1); if (a <= 0) continue;
+      ctx.fillStyle = rgba(mix(mix(INK_L, DARK[1], .4), p.w ? INK_L : DARK[p.c], s), a);
+      ctx.beginPath(); ctx.arc(x, y, lerp(2.2, 3.4, s) * p.sz, 0, TAU); ctx.fill();
+    }
+  }
+  // the seeds that burst from it
+  const HEAD = FC;
+  const ALLS = Array.from({ length: 96 }, (_, i) => {
+    const a = i * 2.399963, r = 50 + 160 * ((i * .618034) % 1), dx = Math.cos(a), dy = Math.sin(a);
+    const extra = !(Math.floor((i + 1) * 56 / 96) > Math.floor(i * 56 / 96));
+    return { i, extra, a, dx, dy, len: r, d: .5 + .5 * ((i * .37) % 1), x0: FC[0] + dx * r, y0: FC[1] + dy * r,
+      R: extra ? 160 + rnd() * 300 : 260 + rnd() * 560, ph: rnd() * 6.28, c: i % 4, rot: (rnd() - .5) * .6, mt: extra ? 99 : 13.55 + rnd() * .7, tsz: 30 + rnd() * 16 };
+  });
+  const FIL = ALLS.filter(f => !f.extra), NSEED = FIL.length;
+  function seedPos(f, t) {
+    const dt = Math.max(0, t - TB), r = f.R * (1 - Math.exp(-3 * dt));
+    return [f.x0 + f.dx * r + 14 * dt + 10 * Math.sin(dt * 1.1 + f.ph), f.y0 + f.dy * r + 15 * dt + 8 * Math.sin(dt * 1.7 + f.ph)];
+  }
+  function tuft(x, y, c, a, rot, scale = 1) {
+    if (a <= 0) return;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
+    ctx.strokeStyle = rgba(c, .8 * a); ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+    for (let i = -2; i <= 2; i++) { const an = -Math.PI / 2 + i * .32; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(an) * 17, Math.sin(an) * 17); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(0, 2, 3.4, 0, TAU); ctx.fillStyle = rgba(c, a); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---------- the aOS sparkle: it arrives, draws the stock apps into itself, then waits ----------
+  // Later, when the prompt is typed, it breathes out the cloud the new app forms from (drawGen).
+  const SPK = IMPACT;
+  const spkPos = t => { const u = esine(prog(t, 6.0, 7.0)); return [SPK[0] + 30 * Math.sin(u * 4) * (1 - u), lerp(TOP - 60, SPK[1], u), (1 - u) * 1.4]; };
+  function sparkle(x, y, r, a, rot) {
+    if (a <= 0) return;
+    glow(x, y, r * 4.2, DARK[1], .6 * a);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const an = -Math.PI / 2 + i * Math.PI / 4, q = i % 2 ? r * .28 : r; ctx.lineTo(Math.cos(an) * q, Math.sin(an) * q); }
+    ctx.closePath();
+    const g = ctx.createLinearGradient(-r, -r, r, r); DARK.forEach((p, i) => g.addColorStop(i / 3, rgba(mix(p, INK_L, .35), a)));
+    ctx.fillStyle = g; ctx.fill(); ctx.restore();
+  }
+  function drawAbsorb(t) {
+    if (t < 6.0 || t > 13.2) return;
+    let taken = 0;
+    for (const k of ICONS) {
+      const u = prog(t, k.ts, k.ts + .7); if (u >= 1) { taken++; continue; } if (u <= 0) continue;
+      const e = u * u * u, x = lerp(k.sp[0], SPK[0], e), y = lerp(k.sp[1], SPK[1], e), ang = Math.atan2(k.sp[1] - SPK[1], k.sp[0] - SPK[0]);
+      const sc = 2.1 * lerp(1, .05, e), st = Math.sin(Math.PI * u);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(lerp(x, SPK[0], .35), lerp(y, SPK[1], .35)); ctx.lineWidth = 3; ctx.strokeStyle = rgba(DARK[1], .25 * st); ctx.stroke();
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(sc * (1 + .5 * st), sc * (1 - .3 * st)); ctx.rotate(-ang + e * 1.2 * (k.i % 2 ? 1 : -1));
+      ctx.globalAlpha = 1 - ss(u, .7, 1); stockIcon(k.g); ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    const fill = taken / ICONS.length;
+    // once it has them all: one soft ring
+    const ru = prog(t, 8.95, 9.9);
+    if (ru > 0 && ru < 1) { ctx.beginPath(); ctx.arc(SPK[0], SPK[1], 60 + 560 * eo(ru), 0, TAU); ctx.lineWidth = 3; ctx.strokeStyle = rgba(INK_L, .45 * (1 - ru)); ctx.stroke(); }
+    // breathing out, as the app is generated
+    const br = prog(t, 12.15, 13.1);
+    if (br > 0 && br < 1) glow(SPK[0], SPK[1], 180 + 420 * eo(br), DARK[1], .5 * Math.sin(Math.PI * br));
+    const [x, y, rot] = spkPos(t);
+    const a = ss(t, 6.0, 6.25) * (1 - ss(t, 12.4, 13.0));
+    sparkle(x, y, (26 + 18 * fill) * (1 + .1 * Math.sin(t * 3.2) * fill), a, rot + fill * .8 + Math.max(0, t - 9) * .15);
+  }
+
+  // ---------- 3. seeds become code, the code becomes one line, and back to seeds ----------
+  const TOKS = ['{ }', '</>', '=>', '( )', '[ ]', ';', '0', '1', 'fn', 'if', '&&', '::', '#', '+=', '?', 'let', '...', '*', '!=', '%'];
+  const LINE = 'apps.do(whatYouNeed)', LY = 860, LSZ = 60;
+  const CHARS = [];
+  function layoutLine() {
+    ctx.font = `500 ${LSZ}px ${MONO}`;
+    const adv = ctx.measureText('0').width, x0 = CX - adv * LINE.length / 2;
+    CHARS.length = 0;
+    [...LINE].forEach((ch, i) => { if (ch !== ' ') CHARS.push({ ch, x: x0 + adv * i + adv / 2, y: LY, u: (i + .5) / LINE.length }); });
+    CHARS.end = x0 + adv * LINE.length + adv * .25;
+    // which seeds write which character: spread out, paired left to right
+    const byX = [...FIL].sort((a, b) => seedPos(a, 16)[0] - seedPos(b, 16)[0]);
+    const pick = CHARS.map((_, k) => byX[Math.round(k * (NSEED - 1) / (CHARS.length - 1))]);
+    FIL.forEach(f => { f.ch = null; f.slot = null; });
+    pick.forEach((f, k) => { f.ch = CHARS[k]; f.cj = k; });
+    // twelve of them come down to become the apps
+    const chosen = Array.from({ length: SLOTS.length }, (_, m) => pick[Math.round(m * (CHARS.length - 1) / (SLOTS.length - 1))]);
+    const sl = [...SLOTS].sort((a, b) => a.sx - b.sx || a.sy - b.sy);
+    chosen.sort((a, b) => a.ch.x - b.ch.x).forEach((f, k) => { f.slot = sl[k]; });
+  }
+  function drawSeeds(t) {
+    if (t < TB || t > 21.5) return;
+    const flash = 1 - prog(t, TB, TB + 1.1);
+    glow(HEAD[0], HEAD[1], 380, INK_L, .4 * flash * flash);
+    for (const f of ALLS) {
+      const dt = t - TB; let [x, y] = seedPos(f, t);
+      let a = 1, gu = 0, back = 0;
+      if (f.ch) {
+        gu = eio(prog(t, 16.0 + f.cj * .02, 17.1 + f.cj * .02));
+        x = lerp(x, f.ch.x, gu); y = lerp(y, f.ch.y + 2 * Math.sin(t * 2 + f.cj), gu);
+        back = ss(t, 18.2 + f.cj * .015, 18.55 + f.cj * .015);
+      } else a = 1 - ss(t, 15.9, 16.8);
+      if (f.extra) a = 1 - ss(t, 13.4, 14.5);
+      if (f.slot) {
+        const u = eio(prog(t, 18.6, 20.0));
+        x = lerp(x, f.slot.sx, u); y = lerp(y, f.slot.sy, u);
+        a *= 1 - prog(t, f.slot.b, f.slot.b + .3);
+        glow(x, y, 46 * u, DARK[f.c], .5 * u * a);
+      } else if (f.ch) a *= 1 - ss(t, 18.4, 19.0);
+      if (a <= 0) continue;
+      const band = clamp(1.3 - Math.abs(y - 1600) / 190);      // keep the words clear
+      a *= 1 - .97 * band * (1 - gu);
+      if (dt < .9) {
+        const [px, py] = seedPos(f, Math.max(TB, t - .14));
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.lineWidth = 3.2; ctx.lineCap = 'round';
+        ctx.strokeStyle = rgba(DARK[f.c], .85 * Math.pow(1 - dt / .9, 1.5)); ctx.stroke();
+      }
+      if (dt < 1.2) glow(x, y, 40, DARK[f.c], .9 * Math.pow(1 - dt / 1.2, 2));
+      const m = ss(t, f.mt, f.mt + .45), code = m * (1 - back), seedV = 1 - code;
+      const col = mix(DARK[f.c], INK_L, ss(dt, .6, 2.2) * .55);
+      tuft(x, y, col, a * seedV, f.a + Math.PI / 2 + Math.sin(t * 1.4 + f.ph) * .25 + f.rot * prog(t, TB, TB + 2), (f.slot ? 1 + .5 * prog(t, 18.6, 20) : 1) * lerp(.45 + .4 * f.d, 1, prog(t, TB, TB + .7)));
+      if (code > 0) {
+        const txt = gu > .82 ? f.ch.ch : TOKS[(Math.floor(t * 6 + f.ph * 5) + f.i) % TOKS.length];
+        const sz = lerp(f.tsz, LSZ, gu);
+        ctx.font = `500 ${sz.toFixed(1)}px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = rgba(f.ch ? mix(DARK[f.c], palAt(f.ch.u, t), gu) : DARK[f.c], .92 * a * code);
+        ctx.fillText(txt, x, y);
+      }
+    }
+    // the cursor, as the line finishes writing
+    if (t > 17.0 && t < 18.3 && CHARS.end) {
+      const on = Math.floor((t - 17.0) * 2.6) % 2 === 0 ? 1 : 0;
+      ctx.fillStyle = rgba(INK_L, .75 * on * (1 - ss(t, 18.0, 18.3))); ctx.fillRect(CHARS.end, LY - LSZ * .42, 5, LSZ * .84);
+    }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  // ---------- 4. three people, three phones, and they keep growing ----------
+  function glyph(name) {
+    const c = ctx; c.beginPath();
+    switch (name) {
+      case 'leaf': c.moveTo(-17, 17); c.quadraticCurveTo(-20, -20, 19, -19); c.quadraticCurveTo(20, 18, -17, 17); c.moveTo(-17, 17); c.lineTo(6, -6); break;
+      case 'wave': for (let x = -22; x <= 22; x += 2) c.lineTo(x, -7 + 5 * Math.sin(x / 6)); c.moveTo(-22, 9 + 5 * Math.sin(-22 / 6 + 1)); for (let x = -22; x <= 22; x += 2) c.lineTo(x, 9 + 5 * Math.sin(x / 6 + 1)); break;
+      case 'sun': c.moveTo(10, 0); c.arc(0, 0, 10, 0, TAU); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; c.moveTo(Math.cos(a) * 16, Math.sin(a) * 16); c.lineTo(Math.cos(a) * 22, Math.sin(a) * 22); } break;
+      case 'heart': c.moveTo(0, 17); c.bezierCurveTo(-28, -1, -13, -25, 0, -10); c.bezierCurveTo(13, -25, 28, -1, 0, 17); break;
+      case 'mountain': c.moveTo(-23, 16); c.lineTo(-7, -11); c.lineTo(1, 1); c.lineTo(9, -15); c.lineTo(23, 16); c.closePath(); break;
+      case 'drop': c.moveTo(0, -22); c.bezierCurveTo(9, -10, 14, -1, 14, 7); c.arc(0, 7, 14, 0, Math.PI); c.bezierCurveTo(-14, -1, -9, -10, 0, -22); break;
+      case 'bird': c.moveTo(-22, -1); c.quadraticCurveTo(-11, -13, 0, 2); c.quadraticCurveTo(11, -13, 22, -1); c.moveTo(-8, 12); c.quadraticCurveTo(-3, 7, 2, 13); c.quadraticCurveTo(7, 7, 12, 12); break;
+      case 'flower': for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * TAU / 5; c.moveTo(Math.cos(a) * 11 + 8, Math.sin(a) * 11); c.arc(Math.cos(a) * 11, Math.sin(a) * 11, 8, 0, TAU); } c.moveTo(4, 0); c.arc(0, 0, 4, 0, TAU); break;
+      case 'shell': for (let a = 0; a < Math.PI * 4.2; a += .2) { const r = 1.5 + a * 1.55; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); } break;
+      case 'sprout': c.moveTo(0, 19); c.lineTo(0, -1); c.quadraticCurveTo(-18, -2, -18, -18); c.quadraticCurveTo(-1, -17, 0, -1); c.moveTo(0, 4); c.quadraticCurveTo(16, 4, 17, -11); c.quadraticCurveTo(2, -11, 0, 4); break;
+      case 'star': for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + i * Math.PI / 4, q = i % 2 ? 7 : 21; c.lineTo(Math.cos(a) * q, Math.sin(a) * q); } c.closePath(); break;
+      case 'tree': c.moveTo(0, -21); c.lineTo(16, 7); c.lineTo(-16, 7); c.closePath(); c.moveTo(0, 7); c.lineTo(0, 19); break;
+      case 'moon': c.arc(0, 0, 18, .9, TAU - .9); c.quadraticCurveTo(-4, 0, 11.2, 14.1); break;
+      case 'shellfan': c.moveTo(-20, 12); c.quadraticCurveTo(0, -30, 20, 12); c.closePath(); for (let i = -2; i <= 2; i++) { c.moveTo(0, 12); c.lineTo(i * 8, -8 + Math.abs(i) * 4); } break;
+      case 'timer': c.moveTo(16, 4); c.arc(0, 4, 16, 0, TAU); c.moveTo(0, 4); c.lineTo(0, -6); c.moveTo(-5, -18); c.lineTo(5, -18); c.moveTo(0, -18); c.lineTo(0, -12); break;
+      case 'list': for (let k = -1; k <= 1; k++) { c.moveTo(-6, k * 12); c.lineTo(18, k * 12); c.moveTo(-13, k * 12); c.arc(-16, k * 12, 3, 0, TAU); } break;
+      case 'photo': rrPath(-20, -16, 40, 32, 6); c.moveTo(-14, 10); c.lineTo(-4, -1); c.lineTo(4, 6); c.lineTo(9, 1); c.lineTo(15, 10); break;
+    }
+    c.lineWidth = 4.6; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = 'rgba(255,255,255,.96)'; c.stroke();
+  }
+  const FP = [
+    { cx: 215, label: 'Yours', wall: 'sea' },
+    { cx: 540, label: 'Theirs', wall: 'mist' },
+    { cx: 865, label: 'Ours', wall: 'sand' },
+  ];
+  const FCY = 860, FW = 280, FH = 580;
+  const T_ = (x, y, w = 76, h = 76, r = 20) => ({ x, y, w, h, r });
+  // A: how each set first grows. B: how it has grown into its person.
+  const TILES = [
+    // Yours: the first app opens into a wide one; the rest step down
+    { pj: 0, A: T_(-49, -180), B: T_(0, -180, 174, 76, 22), p: [0, 1], q: [0, 1], g: 'sun', es: 23.35, fx: 'bars' },
+    { pj: 0, A: T_(49, -180), B: T_(49, -82), p: [2, 3], q: [2, 3], g: 'wave', es: 23.15 },
+    { pj: 0, A: T_(-49, -82), B: T_(-49, -82), p: [1, 2], q: [1, 2], g: 'leaf', es: 23.15 },
+    { pj: 0, A: T_(49, -82), B: T_(49, 16), p: [3, 0], q: [3, 0], g: 'heart', es: 23.0 },
+    { pj: 0, B: T_(-49, 16), p: [0, 2], q: [0, 2], g: 'drop', born: 23.6 },
+    // Theirs: everything turns round and spreads out
+    { pj: 1, A: T_(0, -180), B: T_(0, -196, 84, 84, 42), p: [1, 3], q: [1, 0], g: 'mountain', es: 23.4, fx: 'ring' },
+    { pj: 1, A: T_(-49, -82), B: T_(-62, -84, 84, 84, 42), p: [0, 2], q: [3, 2], g: 'bird', es: 23.5 },
+    { pj: 1, A: T_(49, -82), B: T_(62, -84, 84, 84, 42), p: [2, 1], q: [2, 1], g: 'moon', es: 23.6 },
+    { pj: 1, B: T_(0, 28, 84, 84, 42), p: [3, 0], q: [3, 0], g: 'star', born: 23.85 },
+    // Ours: new colours, and new apps keep coming
+    { pj: 2, A: T_(-49, -200), B: T_(-49, -200), p: [2, 0], q: [0, 3], g: 'flower', es: 23.7 },
+    { pj: 2, A: T_(49, -200), B: T_(49, -200), p: [1, 3], q: [3, 1], g: 'shell', es: 23.78 },
+    { pj: 2, A: T_(-49, -102), B: T_(-49, -102), p: [0, 1], q: [2, 0], g: 'tree', es: 23.86 },
+    { pj: 2, A: T_(49, -102), B: T_(49, -102), p: [3, 2], q: [1, 2], g: 'sprout', es: 23.94 },
+    { pj: 2, A: T_(0, -4), B: T_(-49, -4), p: [1, 0], q: [0, 2], g: 'bird', es: 24.0 },
+    { pj: 2, B: T_(49, -4), p: [2, 3], q: [2, 3], g: 'shellfan', born: 24.25 },
+    { pj: 2, B: T_(0, 94, 174, 76, 22), p: [0, 3], q: [0, 3], g: 'sun', born: 24.45, fx: 'checks' },
+  ];
+  const SLOTS = TILES.filter(k => !k.born);                     // what the seeds grow into
+  const local = [0, 0, 0];
+  SLOTS.forEach(k => { k.sx = FP[k.pj].cx + k.A.x; k.sy = FCY + k.A.y; k.b = 19.95 + k.pj * .2 + local[k.pj]++ * .07; });
+  TILES.forEach((k, i) => { k.fl = i * .9; if (k.born) { k.es = k.born; k.A = k.B; k.b = k.born; } });
+
+  const wallCols = kind => kind === 'sea' ? [pal(1), pal(0)] : kind === 'mist' ? [pal(1), pal(2)] : kind === 'shell' ? [pal(2), pal(3)] : [pal(3), pal(2)];
+  function wallpaper(kind, t, a) {
+    if (a <= 0) return;
+    ctx.save(); rr(-FW / 2 + 10, -FH / 2 + 10, FW - 20, FH - 20, 40); ctx.clip(); ctx.globalAlpha *= a;
+    const [c0, c1] = wallCols(kind, t);
+    const g = ctx.createLinearGradient(0, -FH / 2, 0, FH / 2); g.addColorStop(0, rgba(c0)); g.addColorStop(1, rgba(c1));
+    ctx.fillStyle = g; ctx.fillRect(-FW / 2, -FH / 2, FW, FH);
+    ctx.fillStyle = 'rgba(255,255,255,.26)'; ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2.5;
+    if (kind === 'sea') for (let i = 0; i < 4; i++) {
+      ctx.beginPath(); for (let x = -140; x <= 140; x += 8) ctx.lineTo(x, 150 + i * 34 + 6 * Math.sin(x / 26 + t * 1.2 + i)); ctx.stroke();
+    } else for (let i = 0; i < 2; i++) {
+      const mist = kind === 'mist';
+      ctx.beginPath(); ctx.moveTo(-140, 290);
+      for (let x = -140; x <= 140; x += 8) ctx.lineTo(x, (mist ? 140 : 170) + i * 60 + (mist ? 34 : 22) * Math.sin(x / (mist ? 46 : 70) + i * 1.7 + .5));
+      ctx.lineTo(140, 290); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+  // what an app can now do: a forecast, a goal ring, a checklist
+  function drawFx(k, P, f) {
+    if (f <= 0) return;
+    ctx.save(); ctx.globalAlpha *= f; ctx.fillStyle = ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineCap = 'round';
+    if (k.fx === 'bars') [18, 30, 22, 36].forEach((h, i) => { rr(4 + i * 18, 20 - h * f, 10, h * f, 3); ctx.fill(); });
+    if (k.fx === 'ring') {
+      ctx.lineWidth = 5; ctx.globalAlpha *= .35; ctx.beginPath(); ctx.arc(0, 0, 30, 0, TAU); ctx.stroke(); ctx.globalAlpha /= .35;
+      ctx.beginPath(); ctx.arc(0, 0, 30, -Math.PI / 2, -Math.PI / 2 + TAU * .72 * f); ctx.stroke();
+    }
+    if (k.fx === 'checks') [-13, 13].forEach((y, i) => {
+      const q = clamp(f * 2 - i * .5);
+      ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(8, y, 7, 0, TAU); ctx.stroke();
+      ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(4, y); ctx.lineTo(7, y + 3); ctx.lineTo(12 * q + 0, y - 3 * q); ctx.stroke();
+      rr(22, y - 3, 54 * q, 6, 3); ctx.fill();
+    });
+    ctx.restore();
+  }
+  function drawFamily(t, fa = 1) {
+    if (t < 18.5 || t > 26.8) return;
+    FP.forEach((p, j) => {
+      const pa = ss(t, 18.55 + j * .12, 19.3 + j * .12);
+      // at the end each phone flies to its letter and folds over into it
+      const cu = eio(prog(t, 25.2 + j * .08, 26.0 + j * .08)), fl = prog(t, 26.0 + j * .1, 26.45 + j * .1);
+      if (fl >= .5) return;
+      const a = pa * fa; if (a <= 0) return;
+      const Lt = MK.P[j], c = [lerp(p.cx, Lt.x, cu), lerp(FCY, Lt.y, cu)], s = lerp(1, Lt.h / FH, cu) * (.95 + .05 * pa);
+      const ik = ink(t);
+      ctx.save(); ctx.translate(c[0], c[1]); ctx.scale(s * Math.max(.001, Math.cos(fl * Math.PI)), s); ctx.globalAlpha = a;
+      rr(-FW / 2, -FH / 2, FW, FH, 48); ctx.fillStyle = rgba(ik, .045); ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = rgba(ik, .26); ctx.stroke();
+      wallpaper(p.wall, t, .24 * ss(t, 19.6, 20.6) + .5 * ss(t, 22.9 + j * .3, 24.2 + j * .3));
+      for (const k of TILES) {
+        if (k.pj !== j) continue;
+        const bu = prog(t, k.b, k.b + .65);
+        if (bu <= 0) continue;
+        const e = eio(prog(t, k.es, k.es + 1.0));
+        const P = { x: lerp(k.A.x, k.B.x, e), y: lerp(k.A.y, k.B.y, e), w: lerp(k.A.w, k.B.w, e), h: lerp(k.A.h, k.B.h, e), r: lerp(k.A.r, k.B.r, e) };
+        const c0 = mix(tileCol(k.p[0], t), tileCol(k.q[0], t), e), c1 = mix(tileCol(k.p[1], t), tileCol(k.q[1], t), e);
+        const sc = eback(bu), ta = prog(t, k.b, k.b + .25);
+        ctx.save(); ctx.translate(P.x, P.y + 4 * Math.sin(t * 1.6 + k.fl)); ctx.scale(sc, sc); ctx.globalAlpha = a * ta;
+        const g = ctx.createLinearGradient(-P.w / 2, -P.h / 2, P.w / 2, P.h / 2); g.addColorStop(0, rgba(c0)); g.addColorStop(1, rgba(c1));
+        rr(-P.w / 2, -P.h / 2, P.w, P.h, P.r); ctx.fillStyle = g; ctx.fill();
+        if (k.fx) drawFx(k, P, k.born ? ss(t, k.born + .4, k.born + 1.0) : ss(t, k.es + .5, k.es + 1.2));
+        ctx.translate(k.fx && k.fx !== 'ring' ? -P.w / 2 + 38 : 0, 0); ctx.scale(k.fx === 'ring' ? .6 : .74, k.fx === 'ring' ? .6 : .74); glyph(k.g);
+        ctx.restore();
+      }
+      ctx.restore(); ctx.globalAlpha = 1;
+      const la = ss(t, 20.7 + j * .15, 21.3 + j * .15) * (1 - ss(t, 22.4, 22.9));
+      if (la > 0) {
+        ctx.font = `500 34px ${FAM}`; ctx.textAlign = 'center'; if (HAS_LS) ctx.letterSpacing = '0px';
+        ctx.fillStyle = rgba(INK_L, .62 * la); ctx.fillText(p.label, p.cx, FCY + FH / 2 + 62); ctx.textAlign = 'left';
+      }
+    });
+  }
+
+  // ---------- 5. everything folds into AllisonOS, and AllisonOS folds into aOS1, as in aOS's welcome ----------
+  const MK = { FS: 260, SUP: 130, BY: 975, supC: [870, 790], P: [], T: [540, 900] };
+  const NAME = [...'AllisonOS'], KEEP = { 0: 0, 7: 1, 8: 2 };      // the A, O and S come from the three phones
+  // the fold: llison closes up like an accordion, n first, each letter swinging shut on its left edge
+  const FOLD = [6, 5, 4, 3, 2, 1];
+  function foldState(t) {
+    const f = NAME.map(() => 0);
+    FOLD.forEach((i, o) => { f[i] = eio(prog(t, 26.95 + o * .1, 27.5 + o * .1)); });
+    return { e: eio(prog(t, 26.95, 28.0)), ea: eio(prog(t, 27.5, 28.0)), f };
+  }
+  const OPEN = { e: 0, ea: 0, f: NAME.map(() => 0) };
+  function nameLay(st) {
+    const adv = NAME.map((_, i) => i === 0 ? lerp(MK.nw[0], MK.cw[0], st.ea) : KEEP[i] !== undefined ? MK.nw[i] : MK.nw[i] * Math.cos(st.f[i] * Math.PI / 2));
+    const trk = NAME.map((_, i) => i === 8 ? 0 : i >= 1 && i <= 6 ? MK.track * (1 - st.f[i]) : MK.track);
+    const left = []; let x = 0; NAME.forEach((_, i) => { left.push(x); x += adv[i] + trk[i]; });
+    return { adv, left, W: x, k: lerp(MK.SC0, 1, st.e), c: lerp(CX, MK.x0 + MK.wordW / 2, st.e) };
+  }
+  function layoutMark() {
+    ctx.font = `800 ${MK.FS}px ${FAM}`; if (HAS_LS) ctx.letterSpacing = '0px';
+    MK.track = -.032 * MK.FS;
+    MK.cw = ['a', 'O', 'S'].map(c => ctx.measureText(c).width);
+    MK.wordW = MK.cw.reduce((a, b) => a + b, 0) + MK.track * 2;
+    MK.nw = NAME.map(c => ctx.measureText(c).width);
+    MK.asc = NAME.map(c => ctx.measureText(c).actualBoundingBoxAscent || MK.FS * .72);
+    const full = MK.nw.reduce((a, b) => a + b, 0) + MK.track * 8;
+    MK.SC0 = Math.min(.62, 900 / full);
+    ctx.font = `800 ${MK.SUP}px ${FAM}`; MK.supW = ctx.measureText('1').width;
+    const g = 7, total = MK.wordW;               // the name ends as aOS, centred on its own
+    MK.x0 = CX - total / 2; MK.supX = MK.x0 + MK.wordW + g; MK.supBY = MK.BY - .78 * MK.SUP;
+    MK.supC = [MK.supX + MK.supW / 2, MK.supBY - .36 * MK.SUP];
+    MK.CY = MK.BY - 90;
+    // where the phones and the words land, before the fold
+    const L0 = nameLay(OPEN), sx = lx => L0.c + (lx - L0.W / 2) * L0.k, sy = y => MK.CY + (y - MK.CY) * L0.k;
+    MK.P = [0, 7, 8].map(i => ({ x: sx(L0.left[i] + L0.adv[i] / 2), y: sy(MK.BY - MK.asc[i] / 2), h: MK.asc[i] * L0.k }));
+    MK.T = [sx((L0.left[1] + L0.left[6] + L0.adv[6]) / 2), sy(MK.BY - MK.asc[3] / 2)];
+  }
+  const shineGrad = (x0, w, sh) => {
+    const bw = w * .55, bx = lerp(x0 - bw, x0 + w + bw * .4, sh);
+    const g = ctx.createLinearGradient(bx - bw / 2, 0, bx + bw / 2, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, 'rgba(255,255,255,.9)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    return g;
+  };
+  function drawMark(t) {
+    if (t < 26.0) return;
+    const st = foldState(t), lay = nameLay(st), e = st.ea;
+    const blend = ss(t, 26.4, 27.0), sh = prog(t, 29.1, 29.85);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; if (HAS_LS) ctx.letterSpacing = '0px';
+    ctx.save(); ctx.translate(lay.c, MK.CY); ctx.scale(lay.k, lay.k); ctx.translate(-lay.W / 2, -MK.CY);
+    ctx.font = `800 ${MK.FS}px ${FAM}`;
+    const word = pastel(0, lay.W, t), shine = sh > 0 && sh < 1 ? shineGrad(0, lay.W, sh) : null;
+    NAME.forEach((ch, i) => {
+      const cxL = lay.left[i] + lay.adv[i] / 2, cyL = MK.BY - MK.asc[i] / 2;
+      const j = KEEP[i];
+      if (j !== undefined) {                                   // a phone folds over into its letter
+        const fl = prog(t, 26.0 + j * .1, 26.45 + j * .1); if (fl <= .5) return;
+        ctx.save(); ctx.translate(cxL, cyL); ctx.scale(Math.max(.001, -Math.cos(fl * Math.PI)), 1); ctx.translate(-cxL, -cyL);
+        const [c0, c1] = wallCols(FP[j].wall, t);
+        const own = ctx.createLinearGradient(0, cyL - MK.asc[i] / 2, 0, cyL + MK.asc[i] / 2); own.addColorStop(0, rgba(c0)); own.addColorStop(1, rgba(c1));
+        const paint = (glyphCh, gx, sxs, sys, al) => {
+          if (al <= 0) return;
+          ctx.save(); ctx.translate(cxL, MK.BY); ctx.scale(sxs, sys); ctx.translate(-cxL, -MK.BY); ctx.globalAlpha = al;
+          ctx.fillStyle = own; ctx.fillText(glyphCh, gx, MK.BY);
+          if (blend > 0) { ctx.globalAlpha = al * blend; ctx.fillStyle = word; ctx.fillText(glyphCh, gx, MK.BY); }
+          if (shine) { ctx.globalAlpha = al; ctx.fillStyle = shine; ctx.fillText(glyphCh, gx, MK.BY); }
+          ctx.restore();
+        };
+        if (i === 0) {                                         // the A melts into an a
+          paint('A', cxL - MK.nw[0] / 2, 1 - .18 * e, 1 - .28 * e, 1 - ss(e, .1, .7));
+          paint('a', cxL - MK.cw[0] / 2, 1, lerp(1.38, 1, e), ss(e, .15, .75));
+        } else paint(ch, cxL - MK.nw[i] / 2, 1, 1, 1);
+        ctx.restore();
+      } else {                                                 // llison: unfolds from the words, then folds shut into the A
+        const u = prog(t, 26.15 + (i - 1) * .05, 26.5 + (i - 1) * .05); if (u <= 0) return;
+        const f = st.f[i]; if (f >= .995) return;
+        const th = f * Math.PI / 2, sn = Math.sin(th), cs = Math.cos(th), dir = i % 2 ? 1 : -1, lx = lay.left[i];
+        ctx.save(); ctx.translate(lx, MK.BY);
+        ctx.transform(Math.max(.001, cs * Math.sin(u * Math.PI / 2)), dir * .24 * sn, 0, 1 - .12 * sn, 0, 0);   // a page turning away
+        ctx.globalAlpha = 1 - ss(f, .82, .99);
+        ctx.fillStyle = pastel(-lx, lay.W - lx, t); ctx.fillText(ch, 0, 0);
+        if (sn > 0) { ctx.fillStyle = rgba(INK_D, .3 * sn); ctx.fillText(ch, 0, 0); }       // its face darkens as it turns
+        ctx.restore();
+        // a spark where it tucks in beside the A
+        const sp = 1 - Math.abs(f - .9) / .12;
+        if (sp > 0) { ctx.globalAlpha = sp; star4(lay.left[1] - MK.track * .4, MK.BY - MK.asc[i] * .55 - (i - 3.5) * 14, 26 * sp, rgba(palAt((i - 1) / 5, t))); ctx.globalAlpha = 1; }
+      }
+    });
+    ctx.restore(); ctx.globalAlpha = 1;
+    const rw = 520 * eio(prog(t, 28.5, 29.6));
+    if (rw > 0) { ctx.globalAlpha = .8; ctx.fillStyle = pastel(CX - rw / 2, CX + rw / 2, t); ctx.fillRect(CX - rw / 2, MK.BY + 68, rw, 3); ctx.globalAlpha = 1; }
+  }
+
+  // ---------- 6. unique to each person: what matters most to them comes first ----------
+  // Two takes: the fingerprint, or with #people one phone and four people.
+  const VARIANT = /people/.test(location.hash + location.search) ? 'people' : 'print';
+  const famA = t => t < 33 ? 1 - ss(t, 29.2, 29.7) : ss(t, 37.6, 38.3);
+  const APPS = {
+    run: { g: 'heart', p: [0, 1], w: 'run' }, cook: { g: 'timer', p: [3, 2], w: 'cook' },
+    study: { g: 'list', p: [1, 0], w: 'study' }, family: { g: 'photo', p: [2, 3], w: 'family' },
+    sun: { g: 'sun', p: [3, 0] }, wave: { g: 'wave', p: [0, 2] }, leaf: { g: 'leaf', p: [1, 3] }, bird: { g: 'bird', p: [2, 1] },
+  };
+  const PEOPLE = [
+    { pri: 'run', wall: 'sea', col: 0, look: 'band', order: ['sun', 'wave', 'family', 'leaf', 'study', 'bird', 'cook'] },
+    { pri: 'cook', wall: 'sand', col: 3, look: 'hat', order: ['family', 'leaf', 'run', 'bird', 'sun', 'study', 'wave'] },
+    { pri: 'study', wall: 'mist', col: 1, look: 'glasses', order: ['wave', 'run', 'bird', 'cook', 'family', 'sun', 'leaf'] },
+    { pri: 'family', wall: 'shell', col: 2, look: 'bun', order: ['bird', 'cook', 'sun', 'study', 'wave', 'leaf', 'run'] },
+  ];
+  const WIN = [30.0, 31.8, 33.6, 35.4];
+  const HW = 440, HH = 900, HCY = 790;
+  const BIG = { x: 0, y: -235, w: 360, h: 230, r: 36 };
+  const SMALL = i => ({ x: (i % 3 - 1) * 128, y: -30 + Math.floor(i / 3) * 124, w: 92, h: 92, r: 24 });
+  const rectFor = (id, p) => PEOPLE[p].pri === id ? BIG : SMALL(PEOPLE[p].order.indexOf(id));
+  // the big tile: what that app does, at a glance
+  function widget(kind, w, h, f) {
+    ctx.save(); ctx.scale(w / 360, h / 230); ctx.globalAlpha *= f;
+    ctx.strokeStyle = ctx.fillStyle = 'rgba(255,255,255,.96)'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (kind === 'run') {
+      const ga = ctx.globalAlpha;
+      ctx.lineWidth = 12; ctx.globalAlpha = ga * .3; ctx.beginPath(); ctx.arc(-90, 0, 66, 0, TAU); ctx.stroke(); ctx.globalAlpha = ga;
+      ctx.beginPath(); ctx.arc(-90, 0, 66, -Math.PI / 2, -Math.PI / 2 + TAU * .74 * f); ctx.stroke();
+      ctx.save(); ctx.translate(-90, 2); ctx.scale(1.15, 1.15); glyph('heart'); ctx.restore();
+      [30, 52, 40, 70, 58, 86].forEach((bh, i) => { rr(14 + i * 24, 70 - bh * f, 14, bh * f, 5); ctx.fill(); });
+    } else if (kind === 'cook') {
+      ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(-90, 8, 66, 0, TAU); ctx.stroke();
+      ctx.fillRect(-100, -72, 20, 10);
+      for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-90 + Math.cos(a) * 52, 8 + Math.sin(a) * 52); ctx.lineTo(-90 + Math.cos(a) * 58, 8 + Math.sin(a) * 58); ctx.stroke(); }
+      const ha = -Math.PI / 2 + NOW * 1.6; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(-90, 8); ctx.lineTo(-90 + Math.cos(ha) * 44, 8 + Math.sin(ha) * 44); ctx.stroke();
+      [-48, 0, 48].forEach((y, i) => {
+        ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(24, y, 11, 0, TAU); ctx.stroke();
+        if (i < 2) { ctx.beginPath(); ctx.moveTo(18, y); ctx.lineTo(23, y + 5); ctx.lineTo(31, y - 5); ctx.stroke(); }
+        rr(48, y - 5, 110 * f * (i === 2 ? .7 : 1), 10, 5); ctx.fill();
+      });
+    } else if (kind === 'study') {
+      [220, 270, 180, 240].forEach((len, i) => {
+        const y = -78 + i * 52, ga = ctx.globalAlpha;
+        ctx.beginPath(); ctx.arc(-150, y, 8, 0, TAU); ctx.fill();
+        ctx.globalAlpha = ga * (i === 1 ? 1 : .55); rr(-124, y - 13, len * f, 26, 13); ctx.fill(); ctx.globalAlpha = ga;
+      });
+    } else if (kind === 'family') {
+      ctx.lineWidth = 6; rr(-162, -84, 190, 168, 24); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-142, 60); ctx.lineTo(-100, 0); ctx.lineTo(-70, 32); ctx.lineTo(-44, 8); ctx.lineTo(8, 60); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-24, -40, 14, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(108, 0, 62 * (.6 + .4 * f), 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(11,11,15,.5)'; ctx.lineWidth = 6; rr(96, -24, 24, 48, 8); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function avatar(x, y, r, P, sx) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(Math.max(.001, sx), 1);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fillStyle = rgba(tileCol(P.col)); ctx.fill();
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,.95)';
+    ctx.beginPath(); ctx.arc(0, -10, 19, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 46, 36, 28, 0, 0, TAU); ctx.fill();
+    if (P.look === 'band') { ctx.fillStyle = rgba(tileCol(1)); ctx.fillRect(-20, -22, 40, 7); }
+    if (P.look === 'hat') { ctx.fillStyle = 'rgba(255,255,255,.95)'; rr(-15, -50, 30, 22, 9); ctx.fill(); ctx.fillRect(-21, -31, 42, 6); }
+    if (P.look === 'glasses') { ctx.strokeStyle = 'rgba(11,11,15,.6)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(-7, -10, 6, 0, TAU); ctx.moveTo(13, -10); ctx.arc(7, -10, 6, 0, TAU); ctx.stroke(); }
+    if (P.look === 'bun') { ctx.beginPath(); ctx.arc(0, -34, 9, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  }
+  function drawHero(t) {
+    const a = ss(t, 29.2, 29.6) * (1 - ss(t, 37.8, 38.2)); if (a <= 0) return;
+    const g = t < 33 ? esine(prog(t, 29.2, 30.0)) : 1 - esine(prog(t, 37.3, 38.1));
+    const s = lerp(FW / HW, 1, g), cy = lerp(FCY, HCY, g);
+    let pi = 0; WIN.forEach((w, i) => { if (t >= w) pi = i; });
+    const prv = Math.max(0, pi - 1), e = pi === 0 ? 1 : eio(prog(t, WIN[pi], WIN[pi] + .75));
+    const P0 = PEOPLE[prv], P1 = PEOPLE[pi], ik = ink(t);
+    ctx.save(); ctx.translate(CX, cy); ctx.scale(s, s); ctx.globalAlpha = a;
+    rr(-HW / 2, -HH / 2, HW, HH, 64); ctx.fillStyle = rgba(ik, .05); ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = rgba(ik, .3); ctx.stroke();
+    ctx.save(); ctx.scale(HW / FW, HH / FH);
+    if (e < 1) wallpaper(P0.wall, t, .5 * (1 - e)); wallpaper(P1.wall, t, .5 * e);
+    ctx.restore();
+    const appear = ss(t, 29.5, 30.1);
+    for (const id of Object.keys(APPS)) {
+      const A = rectFor(id, prv), Bq = rectFor(id, pi), app = APPS[id];
+      const R = { x: lerp(A.x, Bq.x, e), y: lerp(A.y, Bq.y, e), w: lerp(A.w, Bq.w, e), h: lerp(A.h, Bq.h, e), r: lerp(A.r, Bq.r, e) };
+      const isP1 = P1.pri === id, isP0 = P0.pri === id;
+      const dim = lerp(isP0 ? 1 : .55, isP1 ? 1 : .55, e);
+      ctx.save(); ctx.translate(R.x, R.y);
+      if (isP1 && pi > 0 && e < 1) glow(0, 0, 280, DARK[app.p[0]], .45 * a * Math.sin(Math.PI * e));
+      ctx.globalAlpha = a * dim * appear;
+      const gr = ctx.createLinearGradient(-R.w / 2, -R.h / 2, R.w / 2, R.h / 2); gr.addColorStop(0, rgba(tileCol(app.p[0]))); gr.addColorStop(1, rgba(tileCol(app.p[1])));
+      rr(-R.w / 2, -R.h / 2, R.w, R.h, R.r); ctx.fillStyle = gr; ctx.fill();
+      const wA = isP1 ? ss(t, WIN[pi] + (pi ? .45 : .4), WIN[pi] + (pi ? .9 : .9)) : isP0 && pi !== prv ? 1 - ss(t, WIN[pi], WIN[pi] + .25) : 0;
+      if (wA > 0 && app.w) widget(app.w, R.w, R.h, wA);
+      if (wA < 1) { ctx.globalAlpha = a * dim * appear * (1 - wA); ctx.scale(.9, .9); glyph(app.g); }
+      ctx.restore();
+    }
+    ctx.restore(); ctx.globalAlpha = 1;
+    // who it belongs to
+    const fl = pi === 0 ? 1 : prog(t, WIN[pi] - .2, WIN[pi] + .2), who = pi === 0 || fl >= .5 ? P1 : P0;
+    ctx.globalAlpha = a * g; avatar(CX, cy - (HH / 2) * s - 92 * s, 58 * s, who, pi === 0 ? 1 : Math.abs(Math.cos(fl * Math.PI))); ctx.globalAlpha = 1;
+  }
+
+  // the fingerprint: tiles from every phone settle into ridges, with one app front and center
+  const NFP = 220, FPC = [540, 820];
+  function ridgePts(kind) {
+    const lines = [];
+    for (let k = 0; k < 8; k++) {
+      const rk = 92 + k * 32, pts = [], g0 = kind === 0 ? Math.PI * .5 + .45 : kind === 1 ? -Math.PI * .5 + .5 : Math.PI + .4;
+      for (let s = 0; s <= 80; s++) {
+        const th = g0 + s / 80 * (TAU - .9);
+        let x, y;
+        if (kind === 0) { x = rk * Math.cos(th) * .8; y = rk * Math.sin(th) * 1.08; }
+        else if (kind === 1) { x = rk * Math.cos(th) * .86 + .16 * rk * Math.sin(2 * th); y = rk * Math.sin(th) * 1.02 + .08 * rk * Math.cos(3 * th); }
+        else { x = rk * Math.cos(th) * .74 + k * 6 * Math.sin(th); y = rk * Math.sin(th) * 1.12 - .12 * rk * Math.cos(th) ** 2; }
+        pts.push([FPC[0] + x, FPC[1] + y]);
+      }
+      lines.push(pts);
+    }
+    const seg = []; let total = 0;
+    lines.forEach(l => { for (let i = 1; i < l.length; i++) { const d = Math.hypot(l[i][0] - l[i - 1][0], l[i][1] - l[i - 1][1]); seg.push([l[i - 1], l[i], total, d]); total += d; } });
+    const pts = []; let si = 0;
+    for (let n = 0; n < NFP; n++) {
+      const Lg = (n + .5) / NFP * total; while (si < seg.length - 1 && seg[si][2] + seg[si][3] < Lg) si++;
+      const [p0, p1, s0, d] = seg[si], u = (Lg - s0) / d; pts.push([lerp(p0[0], p1[0], u), lerp(p0[1], p1[1], u)]);
+    }
+    return { lines, pts };
+  }
+  const FPS = [0, 1, 2].map(ridgePts);
+  const PAIRS6 = [[0, 1], [2, 3], [1, 2], [3, 0], [0, 2], [1, 3]];
+  const FPT = Array.from({ length: NFP }, (_, n) => ({ n, sx: FP[n % 3].cx + (rnd() - .5) * 230, sy: FCY + (rnd() - .5) * 500, p: PAIRS6[n % 6], d: rnd() }));
+  const CORE = ['run', 'cook', 'study'], FWIN = [29.5, 33.7, 35.3];
+  function drawPrint(t) {
+    if (t < 29.2 || t > 38.4) return;
+    const out = ss(t, 37.0, 37.7);
+    let pi = 0; FWIN.forEach((w, i) => { if (t >= w) pi = i; });
+    const e = pi === 0 ? 1 : eio(prog(t, FWIN[pi], FWIN[pi] + 1.0)), prv = Math.max(0, pi - 1);
+    // the ridges, faintly
+    const ra = .28 * ss(t, 30.6, 31.4) * (1 - out);
+    if (ra > 0) [[prv, 1 - e], [pi, e]].forEach(([k, w]) => {
+      if (w <= .01) return;
+      for (const l of FPS[k].lines) { ctx.beginPath(); l.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.lineWidth = 2; ctx.strokeStyle = rgba(pal(1), ra * w); ctx.stroke(); }
+    });
+    for (const q of FPT) {
+      const land = eio(prog(t, 29.4 + q.d * .9, 30.6 + q.d * .9));
+      const [ax, ay] = FPS[prv].pts[q.n], [bx, by] = FPS[pi].pts[q.n];
+      // re-forming: each tile travels round the centre, not across it
+      const pa0 = Math.atan2(ay - FPC[1], ax - FPC[0]), pb0 = Math.atan2(by - FPC[1], bx - FPC[0]);
+      let pd = pb0 - pa0; while (pd > Math.PI) pd -= TAU; while (pd < -Math.PI) pd += TAU;
+      const pr = lerp(Math.hypot(ax - FPC[0], ay - FPC[1]), Math.hypot(bx - FPC[0], by - FPC[1]), e), pang = pa0 + pd * e + Math.sin(Math.PI * e) * .5;
+      const tx = FPC[0] + Math.cos(pang) * pr, ty = FPC[1] + Math.sin(pang) * pr;
+      const a0 = Math.atan2(q.sy - FPC[1], q.sx - FPC[0]), r0 = Math.hypot(q.sx - FPC[0], q.sy - FPC[1]);
+      const a1 = Math.atan2(ty - FPC[1], tx - FPC[0]), r1 = Math.hypot(tx - FPC[0], ty - FPC[1]);
+      let da = a1 - a0; while (da > Math.PI) da -= TAU; while (da < -Math.PI) da += TAU;
+      const ang = a0 + da * land + (1 - land) * land * 2.4, rad = lerp(r0, r1, land);
+      let x = FPC[0] + Math.cos(ang) * rad, y = FPC[1] + Math.sin(ang) * rad;
+      x = lerp(x, q.sx, out); y = lerp(y, q.sy, out);
+      const al = ss(t, 29.3, 29.7) * (1 - out), sz = 24 * (1 - .4 * out);
+      if (al <= 0) continue;
+      ctx.globalAlpha = al; rr(x - sz / 2, y - sz / 2, sz, sz, 7); ctx.fillStyle = rgba(mix(tileCol(q.p[0]), tileCol(q.p[1]), q.d)); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // front and center
+    const ca = ss(t, 30.9, 31.6) * (1 - out); if (ca <= 0) return;
+    const fl = pi === 0 ? 1 : prog(t, FWIN[pi] + .3, FWIN[pi] + .7), id = pi === 0 || fl >= .5 ? CORE[pi] : CORE[prv], app = APPS[id];
+    const pulse = (t * .8) % 1;
+    ctx.beginPath(); ctx.arc(FPC[0], FPC[1], 95 + 70 * pulse, 0, TAU); ctx.lineWidth = 3; ctx.strokeStyle = rgba(pal(1), .5 * ca * (1 - pulse)); ctx.stroke();
+    glow(FPC[0], FPC[1], 200, DARK[app.p[0]], .4 * ca);
+    ctx.save(); ctx.translate(FPC[0], FPC[1]); ctx.scale(eback(prog(t, 30.9, 31.6)) * (pi === 0 ? 1 : Math.max(.001, Math.abs(Math.cos(fl * Math.PI)))), eback(prog(t, 30.9, 31.6))); ctx.globalAlpha = ca;
+    const gr = ctx.createLinearGradient(-75, -75, 75, 75); gr.addColorStop(0, rgba(tileCol(app.p[0]))); gr.addColorStop(1, rgba(tileCol(app.p[1])));
+    rr(-75, -75, 150, 150, 38); ctx.fillStyle = gr; ctx.fill();
+    ctx.scale(1.9, 1.9); glyph(app.g);
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  const drawUnique = t => VARIANT === 'print' ? drawPrint(t) : drawHero(t);
+
+  // ---------- the words ----------
+  const BEATS = [
+    { a: 1.3, b: 5.0, lines: ['Someone else decided', 'what your apps can do.'], dim: .86 },
+    { a: 9.0, b: 11.8, lines: ['Not *anymore.*'] },
+    { a: 17.5, b: 20.2, lines: ['Built with *AI*', 'from the ground up.'] },
+    { a: 20.8, b: 23.4, lines: ['Shaped by *you.*'] },
+    { a: 24.1, b: 27.0, lines: ['Custom to *you*', "and your *family's needs.*"] },
+    { a: 30.2, b: 33.6, lines: ['*AllisonOS* customizes your apps', 'so what matters most', 'is *front and center.*'] },
+    { a: 33.9, b: 36.2, lines: ['No two are *alike.*'] },
+    { a: 38.3, b: 40.5, fold: 39.6, lines: ['Declare your', '*independence.*'] },
+    { a: 43.05, b: 99, lines: ['Break free'], y: [MK.BY + 192], size: 76 },
+    { a: 43.4, b: 99, lines: ['Coming soon'], y: [MK.BY + 262], size: 40, weight: 500, dim: .58 },
+  ];
+  const segs = s => s.split(/(\*[^*]+\*)/).filter(Boolean).map(p => p[0] === '*' ? { t: p.slice(1, -1), p: 1 } : { t: p });
+  function drawWords(t) {
+    for (const bt of BEATS) {
+      if (t < bt.a || t > bt.b) continue;
+      let size = bt.size || 80; const weight = bt.weight || 700;
+      const n = bt.lines.length, ys = bt.y || (n === 3 ? [1500, 1594, 1688] : n === 2 ? [1556, 1652] : [1604]);
+      const setFont = () => { ctx.font = `${weight} ${size}px ${FAM}`; if (HAS_LS) ctx.letterSpacing = (-.014 * size).toFixed(2) + 'px'; };
+      setFont(); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      const widest = Math.max(...bt.lines.map(l => ctx.measureText(l.replace(/\*/g, '')).width));
+      if (widest > 940) { size = Math.floor(size * 940 / widest); setFont(); }   // fit the phone
+      bt.lines.forEach((line, li) => {
+        const tin = bt.a + li * .12;
+        const out = bt.fold ? 0 : ss(t, bt.b - .45, bt.b);
+        const al = ss(t, tin, tin + .55) * (1 - out) * (bt.dim || 1);
+        if (al <= 0) return;
+        const dy = 26 * (1 - eo(prog(t, tin, tin + .75))) - 14 * out;
+        const sg = segs(line), ws = sg.map(s => ctx.measureText(s.t).width);
+        let x = CX - ws.reduce((a, b) => a + b, 0) / 2;
+        ctx.save();
+        if (bt.fold && t > bt.fold) {                            // shrink up into the name, and fold
+          const u = eio(prog(t, bt.fold + li * .06, 40.3)), pf = prog(t, 40.3, 40.5), my = ys[li] - size * .36;
+          ctx.translate(lerp(CX, MK.T[0], u), lerp(my, MK.T[1], u));
+          const sc = lerp(1, .2, u); ctx.scale(sc * Math.max(.001, Math.cos(pf * Math.PI / 2)), sc);
+          ctx.translate(-CX, -my);
+        }
+        ctx.globalAlpha = al;
+        sg.forEach((s, i) => { ctx.fillStyle = s.p ? pastel(x, x + ws[i], t) : rgba(ink(t)); ctx.fillText(s.t, x, ys[li] + dy); x += ws[i]; });
+        ctx.restore();
+      });
+    }
+    if (HAS_LS) ctx.letterSpacing = '0px';
+  }
+
+  // ---------- one frame ----------
+  function render(t) {
+    t = clamp(t, 0, DUR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = 1;
+    const [top, bot] = sky(t);
+    const g = ctx.createLinearGradient(0, 0, 0, CH); g.addColorStop(0, rgba(top)); g.addColorStop(1, rgba(bot));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
+    ctx.setTransform(DPR * S, 0, 0, DPR * S, DPR * OX, DPR * OY);
+    NOW = t;
+    // the family phones, the seeds and the name fold keep their own clocks: shifted to make room for the new scenes
+    const tf = t < 29.19 ? t - 4 : t < 39.5 ? 25.19 : t - 14.31;
+    drawMist(t); drawPhone(t); drawAbsorb(t); drawGen(t);
+    drawFamily(tf, famA(t)); drawUnique(t); drawSeeds(t - 4); drawMark(t - 14.3); drawWords(t);
+    document.body.style.background = rgba(bot);
+  }
+
+  // ---------- playback ----------
+  const bar = document.getElementById('progress'), pill = document.getElementById('pill');
+  let t0 = 0, held = 0, playing = false, raf = 0;
+  const now = () => performance.now() / 1000;
+  function tick() {
+    const t = now() - t0;
+    render(t); bar.style.transform = `scaleX(${clamp(t / DUR)})`;
+    if (t >= DUR) { playing = false; held = DUR; pill.textContent = 'Replay'; pill.hidden = false; return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play(from = 0) { cancelAnimationFrame(raf); t0 = now() - from; playing = true; pill.hidden = true; raf = requestAnimationFrame(tick); }
+  function pause() { if (!playing) return; cancelAnimationFrame(raf); held = now() - t0; playing = false; pill.textContent = 'Play'; pill.hidden = false; }
+  pill.addEventListener('click', e => { e.stopPropagation(); play(pill.textContent === 'Play' ? held : 0); });
+  cv.addEventListener('click', () => { if (playing) pause(); else if (pill.textContent === 'Play') play(held); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('resize', () => { resize(); if (!playing) render(held); });
+
+  async function start() {
+    resize();
+    try {
+      await Promise.race([
+        Promise.all(['500 40px Inter', '700 80px Inter', '800 260px Inter', '500 52px "JetBrains Mono"'].map(f => document.fonts.load(f, 'aOS1 Break free {}'))),
+        new Promise(r => setTimeout(r, 2500)),
+      ]);
+    } catch (e) { /* the system font stack still draws */ }
+    layoutMark(); layoutLine();
+    if (EXPORT) { window.renderAt = render; render(0); window.__ready = true; return; }
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { held = DUR; render(DUR); pill.textContent = 'Replay'; pill.hidden = false; return; }
+    play(0);
+  }
+  start();
+})();
+</script>
+</body>
+</html>
