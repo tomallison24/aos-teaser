@@ -47,12 +47,23 @@
     border: 1px solid var(--edge); border-radius: 999px; padding: 12px 20px;
     -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); cursor: pointer; }
   .pill:focus-visible { outline: 2px solid #8193BC; outline-offset: 3px; }
-  .export .bar, .export .pill { display: none !important; }
+  .pill.big { bottom: auto; top: 50%; transform: translate(-50%, -50%); font-size: 19px; padding: 17px 30px;
+    display: flex; align-items: center; gap: 10px; white-space: nowrap; background: rgba(255,255,255,.92); }
+  .pill svg { width: 15px; height: 15px; }
+  .snd { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 14px); right: 14px; width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center; padding: 0; color: var(--ink-dark); background: var(--glass); border: 1px solid var(--edge);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); cursor: pointer; }
+  .snd svg { width: 20px; height: 20px; }
+  .snd:focus-visible { outline: 2px solid #8193BC; outline-offset: 3px; }
+  .snd[hidden], .pill[hidden] { display: none; }
+  .export .bar, .export .pill, .export .snd { display: none !important; }
 </style>
 
 <canvas id="film" role="img" aria-label="aOS launch teaser. In the dark, a clock ticks round: you've been waiting. Thank you for your patience. The clock collapses into the aOS sparkle and the date rolls in, 10/10/26: aOS launches tomorrow. The core apps arrive one by one, each adding its colour to the sky: Mail, Calendar, News, Weather, Notes, Podcasts, Travel, Places, Fitness, Drinks and Home, filling the clock face with aOS at twelve. It's time. A burst of light and confetti, and an invite card: You're invited. Expect your invite in the next 24h. Your invite to aOS arrives in the next 24 hours. aOS. See you tomorrow. Saturday, 10/10/26."></canvas>
 <div class="bar" aria-hidden="true"><i id="progress"></i></div>
 <button class="pill" id="pill" type="button" hidden>Replay</button>
+<button class="snd" id="snd" type="button" aria-label="Mute" hidden></button>
+<audio id="music" src="music.mp3" preload="auto" playsinline></audio>
 
 <script>
 (() => {
@@ -671,20 +682,37 @@
     document.body.style.background = rgba(bot);
   }
 
-  // ---------- playback ----------
+  // ---------- playback: the film follows the music's clock while it plays ----------
   const bar = document.getElementById('progress'), pill = document.getElementById('pill');
+  const snd = document.getElementById('snd'), music = document.getElementById('music');
+  const PLAY_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9.5-5.5z" fill="currentColor"/></svg>';
+  const SPEAKER = on => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/>${on ? '<path d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/>' : '<path d="M16 9.5l5 5M21 9.5l-5 5"/>'}</svg>`;
   let t0 = 0, held = 0, playing = false, raf = 0;
   const now = () => performance.now() / 1000;
+  const setPill = mode => {
+    pill.classList.toggle('big', mode === 'start');
+    pill.innerHTML = mode === 'start' ? `${PLAY_ICON}<span>Play with sound</span>` : mode;
+    pill.dataset.mode = mode; pill.hidden = false;
+  };
+  const paintSnd = () => { snd.innerHTML = SPEAKER(!music.muted); snd.setAttribute('aria-label', music.muted ? 'Sound on' : 'Mute'); };
   function tick() {
+    // keep in step with the music; if it couldn't seek (or stalled), the film keeps its own time
+    if (!music.paused && !music.ended && music.currentTime > 0 && Math.abs(now() - t0 - music.currentTime) < .75) t0 = now() - music.currentTime;
     const t = now() - t0;
     render(t); bar.style.transform = `scaleX(${clamp(t / DUR)})`;
-    if (t >= DUR) { playing = false; held = DUR; pill.textContent = 'Replay'; pill.hidden = false; return; }
+    if (t >= DUR) { playing = false; held = DUR; music.pause(); setPill('Replay'); return; }
     raf = requestAnimationFrame(tick);
   }
-  function play(from = 0) { cancelAnimationFrame(raf); t0 = now() - from; playing = true; pill.hidden = true; raf = requestAnimationFrame(tick); }
-  function pause() { if (!playing) return; cancelAnimationFrame(raf); held = now() - t0; playing = false; pill.textContent = 'Play'; pill.hidden = false; }
-  pill.addEventListener('click', e => { e.stopPropagation(); play(pill.textContent === 'Play' ? held : 0); });
-  cv.addEventListener('click', () => { if (playing) pause(); else if (pill.textContent === 'Play') play(held); });
+  function play(from = 0) {
+    cancelAnimationFrame(raf); t0 = now() - from; playing = true; pill.hidden = true;
+    try { music.currentTime = from; const p = music.play(); if (p) p.catch(() => {}); } catch (e) { /* the film plays on without it */ }
+    snd.hidden = false; paintSnd();
+    raf = requestAnimationFrame(tick);
+  }
+  function pause() { if (!playing) return; cancelAnimationFrame(raf); held = now() - t0; playing = false; music.pause(); setPill('Play'); }
+  pill.addEventListener('click', e => { e.stopPropagation(); play(pill.dataset.mode === 'Play' ? held : 0); });
+  snd.addEventListener('click', e => { e.stopPropagation(); music.muted = !music.muted; paintSnd(); });
+  cv.addEventListener('click', () => { if (playing) pause(); else if (pill.dataset.mode === 'Play') play(held); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
   window.addEventListener('resize', () => { resize(); if (!playing) render(held); });
 
@@ -700,8 +728,8 @@
       ]);
     } catch (e) { /* the system fonts and plain tiles still draw */ }
     if (EXPORT) { window.renderAt = render; render(0); window.__ready = true; return; }
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { held = DUR; render(DUR); pill.textContent = 'Replay'; pill.hidden = false; return; }
-    play(0);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { held = DUR; render(DUR); setPill('Replay'); return; }
+    render(0); setPill('start');   // sound needs a tap first, and the film opens in the dark anyway
   }
   start();
 })();
