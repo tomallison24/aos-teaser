@@ -8,6 +8,8 @@ Two short films for aOS, the AllisonOS app store. Each plays on its own in a bro
   and "Your invite to aOS arrives in the next 24 hours". A ready-to-send video of it is
   `launch/aos-launch-teaser.mp4` (1080x1920, 30fps), with a soft original score timed to the film.
   https://tomallison24.github.io/aos-teaser/launch/
+  The page plays the same score (`launch/music.mp3`, made by `make-video/music.py`): it opens on a
+  "Play with sound" button, since phones only allow sound after a tap, and the film follows the music's clock.
 
 To remake the MP4 (`launch/make-video/`): serve the repo (`python3 -m http.server 8765`), run
 `node render.mjs film.mp4` (Playwright), `python3 music.py music.wav` (numpy), then
