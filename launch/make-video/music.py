@@ -23,7 +23,6 @@ LAND = [s + d + .55 for s, d in zip(ST, DURS)]
 AOS_LAND = C_END + .55
 TICKS = [.8 + 6.2 * (i / 60) ** (1 / 1.55) for i in range(1, 61)]
 HEART = [(2.6, .1), (4.6, .17), (6.1, .26), (6.85, .34)]
-TAP = 24.55
 
 NOTE = {}
 for name, semis in [('C', -9), ('C#', -8), ('D', -7), ('E', -5), ('F', -4), ('F#', -3), ('G', -2), ('A', 0), ('B', 2)]:
@@ -165,7 +164,7 @@ while t < 26.4:
     i += 1; t += beat
 for s in (22.6, 23.6, 24.6, 25.6):
     tick(s, .03, .1)
-place(bell(NOTE['A5'], .8, .2), TAP + .05, .1, .2); place(bell(NOTE['D6'], 1.2, .3), TAP + .17, .1, .2)
+place(bell(NOTE['A5'], .8, .2), 21.4, .08, .2); place(bell(NOTE['D6'], 1.2, .3), 21.52, .08, .2)   # the invite notice appears
 
 # ---- 5. the end ----
 thump(26.85, .35, 60, 40, 1.2)

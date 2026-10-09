@@ -50,7 +50,7 @@
   .export .bar, .export .pill { display: none !important; }
 </style>
 
-<canvas id="film" role="img" aria-label="aOS launch teaser. In the dark, a clock ticks round: you've been waiting. Thank you for your patience. The clock collapses into the aOS sparkle and the date rolls in, 10/10/26: aOS launches tomorrow. The core apps arrive one by one, each adding its colour to the sky: Mail, Calendar, News, Weather, Notes, Podcasts, Travel, Places, Fitness, Drinks and Home, filling the clock face with aOS at twelve. It's time. A burst of light and confetti, and an invite card: You're invited. Your invite to aOS arrives in the next 24 hours. aOS. See you tomorrow. Saturday, 10/10/26."></canvas>
+<canvas id="film" role="img" aria-label="aOS launch teaser. In the dark, a clock ticks round: you've been waiting. Thank you for your patience. The clock collapses into the aOS sparkle and the date rolls in, 10/10/26: aOS launches tomorrow. The core apps arrive one by one, each adding its colour to the sky: Mail, Calendar, News, Weather, Notes, Podcasts, Travel, Places, Fitness, Drinks and Home, filling the clock face with aOS at twelve. It's time. A burst of light and confetti, and an invite card: You're invited. Expect your invite in the next 24h. Your invite to aOS arrives in the next 24 hours. aOS. See you tomorrow. Saturday, 10/10/26."></canvas>
 <div class="bar" aria-hidden="true"><i id="progress"></i></div>
 <button class="pill" id="pill" type="button" hidden>Replay</button>
 
@@ -510,7 +510,6 @@
   };
   // the card's aOS icon, in stage units: it stays on screen at the end
   const CARD_ICON = [CX - 840 / 2 + PAD + 64, 806 - 624 / 2 + PAD + 64];
-  const TAP = 24.55;
   function drawCard(t) {
     const iu = cardIn(t), ou = cardOut(t);
     if (iu <= 0 || ou >= 1) return;
@@ -531,46 +530,25 @@
     ctx.font = `500 32px ${FAM}`; spacing('-.2px'); ctx.fillStyle = rgba(INK_D, .5); ctx.fillText('The AllisonOS app store', x0 + PAD + 160, y0 + PAD + 106 + sl(.08));
     ctx.globalAlpha = a * el(.18); ctx.font = `800 96px ${FAM}`; spacing('-2.4px'); ctx.fillStyle = rgba(INK_D); ctx.fillText('You’re invited', x0 + PAD - 4, y0 + 334 + sl(.18));
     ctx.globalAlpha = a * el(.28); ctx.font = `500 40px ${FAM}`; spacing('-.3px'); ctx.fillStyle = rgba(INK_D, .58); ctx.fillText('Join the Allison family on aOS.', x0 + PAD, y0 + 398 + sl(.28));
-    // the button, and a tap on it
-    const press = 1 - .05 * Math.sin(Math.PI * prog(t, TAP, TAP + .22));
-    const bw = w - PAD * 2, bh = 104, bx = x0 + PAD, by = y0 + 448 + sl(.38);
+    // not a button: a notice that the invite is on its way
+    const bw = w - PAD * 2, bh = 112, bx = x0 + PAD, by = y0 + 446 + sl(.38);
     ctx.globalAlpha = a * el(.38);
-    ctx.save(); ctx.translate(bx + bw / 2, by + bh / 2); ctx.scale(press, press); ctx.translate(-bx - bw / 2, -by - bh / 2);
-    rr(bx, by, bw, bh, bh / 2); ctx.fillStyle = pastel(bx, bx + bw); ctx.fill();
-    const ru = prog(t, TAP + .02, TAP + .9);
-    if (ru > 0 && ru < 1) { ctx.save(); rr(bx, by, bw, bh, bh / 2); ctx.clip(); ctx.beginPath(); ctx.arc(bx + bw / 2, by + bh / 2, 40 + 420 * eo(ru), 0, TAU); ctx.fillStyle = `rgba(255,255,255,${.45 * (1 - ru)})`; ctx.fill(); ctx.restore(); }
+    rr(bx, by, bw, bh, 28); ctx.fillStyle = pastel(bx, bx + bw); ctx.globalAlpha = a * el(.38) * .2; ctx.fill(); ctx.globalAlpha = a * el(.38);
+    ctx.lineWidth = 2; ctx.strokeStyle = rgba(LIGHT[1], .35); ctx.stroke();
     const sh = prog(t, 21.9, 22.8);
-    if (sh > 0 && sh < 1) { ctx.save(); rr(bx, by, bw, bh, bh / 2); ctx.clip(); ctx.fillStyle = shine(bx, bw, sh); ctx.fillRect(bx, by, bw, bh); ctx.restore(); }
-    ctx.textAlign = 'center'; ctx.font = `700 42px ${FAM}`; spacing('-.4px'); ctx.fillStyle = '#fff';
-    const sw = ss(t, TAP + .15, TAP + .4), ga = ctx.globalAlpha;
-    ctx.globalAlpha = ga * (1 - sw); ctx.fillText('Accept invite', bx + bw / 2, by + bh / 2 + 15 + 14 * sw);
-    if (sw > 0) {
-      ctx.globalAlpha = ga * sw; const ty = by + bh / 2 + 15 - 14 * (1 - sw), tw = ctx.measureText('You’re in').width;
-      ctx.fillText('You’re in', bx + bw / 2 + 24, ty);
-      const cx2 = bx + bw / 2 - tw / 2 - 6, cy2 = ty - 14;
-      ctx.beginPath(); ctx.moveTo(cx2 - 14, cy2); ctx.lineTo(cx2 - 4, cy2 + 10); ctx.lineTo(cx2 + 14 * ss(t, TAP + .2, TAP + .55), cy2 - 12 * ss(t, TAP + .2, TAP + .55));
-      ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#fff'; ctx.stroke();
-    }
-    ctx.restore();
+    if (sh > 0 && sh < 1) { ctx.save(); rr(bx, by, bw, bh, 28); ctx.clip(); ctx.fillStyle = shine(bx, bw, sh); ctx.fillRect(bx, by, bw, bh); ctx.restore(); }
+    // an envelope, bobbing now and then, with the hours going round it
+    const ex = bx + 64, ey = by + bh / 2 - 8 * Math.pow(Math.max(0, Math.sin((t - 21.5) * 2.4)), 6);
+    ctx.beginPath(); ctx.arc(bx + 64, by + bh / 2, 38, 0, TAU); ctx.lineWidth = 3; ctx.strokeStyle = rgba(INK_D, .12); ctx.stroke();
+    const ring = ss(t, 21.6, 26.2);
+    if (ring > 0) { ctx.beginPath(); ctx.arc(bx + 64, by + bh / 2, 38, -Math.PI / 2, -Math.PI / 2 + TAU * ring); ctx.strokeStyle = pastel(bx + 26, bx + 102); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.stroke(); }
+    ctx.beginPath(); rrPath(ex - 20, ey - 14, 40, 28, 5); ctx.moveTo(ex - 20, ey - 12); ctx.lineTo(ex, ey + 2); ctx.lineTo(ex + 20, ey - 12);
+    ctx.lineWidth = 3.5; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = rgba(INK_D, .8); ctx.stroke();
+    const msg = 'Expect your invite in the next 24h';
+    let fsz = 40; ctx.font = `600 ${fsz}px ${FAM}`; spacing('-.4px');
+    const room = bw - 140; if (ctx.measureText(msg).width > room) { fsz = Math.floor(fsz * room / ctx.measureText(msg).width); ctx.font = `600 ${fsz}px ${FAM}`; }
+    ctx.textAlign = 'left'; ctx.fillStyle = rgba(INK_D, .85); ctx.fillText(msg, bx + 120, by + bh / 2 + fsz * .36);
     ctx.restore(); ctx.globalAlpha = 1; ctx.textAlign = 'left'; spacing('0px');
-    // a fingertip
-    const fa = ss(t, TAP - .45, TAP - .15) * (1 - ss(t, TAP + .25, TAP + .6));
-    if (fa > 0) {
-      const fx = CX + 140 + 30 * (1 - eo(prog(t, TAP - .45, TAP))), fy = cy - h / 2 + 448 + bh / 2 + 40 * (1 - eo(prog(t, TAP - .45, TAP)));
-      const fs = 1 - .12 * Math.sin(Math.PI * prog(t, TAP, TAP + .22));
-      ctx.beginPath(); ctx.arc(fx, fy, 44 * fs, 0, TAU); ctx.fillStyle = `rgba(255,255,255,${.55 * fa})`; ctx.fill();
-      ctx.lineWidth = 3; ctx.strokeStyle = `rgba(11,11,15,${.12 * fa})`; ctx.stroke();
-    }
-    // sparks off the button
-    const bu = prog(t, TAP + .05, TAP + 1.1);
-    if (bu > 0 && bu < 1) {
-      const ox = CX, oy = cy - h / 2 + 448 + bh / 2;
-      for (let i = 0; i < 14; i++) {
-        const an = -Math.PI / 2 + (i - 6.5) * .3 + (i % 2 ? .08 : -.08), r = 70 + 330 * eo(bu) * (i % 3 ? 1 : .7);
-        ctx.globalAlpha = 1 - bu; star4(ox + Math.cos(an) * r * 1.5, oy + Math.sin(an) * r, 14 * (1 - .5 * bu), rgba(LIGHT[i % 4]), bu * 3);
-      }
-      ctx.globalAlpha = 1;
-    }
   }
   // the countdown: 24 hours, starting now
   function drawCountdown(t) {
