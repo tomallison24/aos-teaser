@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>aOS · Launching tomorrow</title>
+<meta name="description" content="Thank you for waiting. aOS launches tomorrow, 10/10/26. Your invite to aOS arrives in the next 24 hours.">
+<meta name="theme-color" content="#040507">
+<meta property="og:type" content="website">
+<meta property="og:title" content="aOS · Launching tomorrow">
+<meta property="og:description" content="Thank you for waiting. Your invite to aOS arrives in the next 24 hours.">
+<meta property="og:url" content="https://tomallison24.github.io/aos-teaser/launch/">
+<meta property="og:image" content="https://tomallison24.github.io/aos-teaser/launch/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tomallison24.github.io/aos-teaser/launch/og.png">
+<link rel="preload" href="../fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face { font-family: Inter; src: url("../fonts/Inter.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  @font-face { font-family: "JetBrains Mono"; src: url("../fonts/JetBrainsMono-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+</style>
+</head>
+<body>
+<style>
+  /* The second teaser: launch eve. A 1080x1920 stage scaled to fit the phone, the
+     sky drawn edge to edge behind it. It starts in the dark of the wait and ends
+     bright, in Sea glass, so every colour is set here. */
+  :root {
+    --night: #040507;
+    --ink-dark: #0B0B0F;
+    --glass: rgba(255,255,255,.74);
+    --edge: rgba(11,11,15,.08);
+    --pastel: linear-gradient(100deg, #6FA597 0%, #8193BC 34%, #BE918F 67%, #BC9C68 100%);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--night); color: #F3F4F8; font-family: var(--font); overflow: hidden;
+    -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
+  .bar { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); transform: translateX(-50%);
+    width: min(36vw, 160px); height: 2px; border-radius: 1px; background: rgba(140,140,150,.28); overflow: hidden; pointer-events: none; }
+  .bar i { display: block; height: 100%; width: 100%; background: var(--pastel); transform-origin: 0 50%; transform: scaleX(0); }
+  .pill { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 34px); transform: translateX(-50%);
+    font: 600 15px/1 var(--font); letter-spacing: -.01em; color: var(--ink-dark); background: var(--glass);
+    border: 1px solid var(--edge); border-radius: 999px; padding: 12px 20px;
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); cursor: pointer; }
+  .pill:focus-visible { outline: 2px solid #8193BC; outline-offset: 3px; }
+  .export .bar, .export .pill { display: none !important; }
+</style>
+
+<canvas id="film" role="img" aria-label="aOS launch teaser. In the dark, a clock ticks round: you've been waiting. Thank you for your patience. The clock collapses into the aOS sparkle and the date rolls in, 10/10/26: aOS launches tomorrow. The core apps arrive one by one, each adding its colour to the sky: Mail, Calendar, News, Weather, Notes, Podcasts, Travel, Places, Fitness, Drinks and Home, filling the clock face with aOS at twelve. It's time. A burst of light and confetti, and an invite card: You're invited. Your invite to aOS arrives in the next 24 hours. aOS. See you tomorrow. Saturday, 10/10/26."></canvas>
+<div class="bar" aria-hidden="true"><i id="progress"></i></div>
+<button class="pill" id="pill" type="button" hidden>Replay</button>
+
+<script>
+(() => {
+  'use strict';
+  const EXPORT = /export/.test(location.search);
+  if (EXPORT) document.documentElement.classList.add('export');
+  const DUR = 30, W0 = 1080, H0 = 1920, CX = 540, TAU = Math.PI * 2;
+  const FAM = '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, system-ui, sans-serif';
+  const MONO = 'ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace';
+  const cv = document.getElementById('film'), ctx = cv.getContext('2d');
+  const HAS_LS = 'letterSpacing' in ctx;
+  const spacing = px => { if (HAS_LS) ctx.letterSpacing = px; };
+
+  // ---------- small maths ----------
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const prog = (t, a, b) => clamp((t - a) / (b - a));
+  const ss = (t, a, b) => { const u = prog(t, a, b); return u * u * (3 - 2 * u); };
+  const eo = u => 1 - Math.pow(1 - u, 3);
+  const eio = u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+  const eback = u => { const c1 = 1.56, c3 = c1 + 1; return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2); };
+  const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, u) => a.map((v, i) => v + (b[i] - v) * u);
+  const rgba = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+  let seed = 1010;
+  const rnd = () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+
+  // ---------- Sea glass (from welcome.js): sea glass, mist, shell, sand ----------
+  const DARK = ['#A9D3C7', '#B9C6E0', '#E3C5C3', '#E9D6B4'].map(hex);   // the pastel on dark
+  const LIGHT = ['#6FA597', '#8193BC', '#BE918F', '#BC9C68'].map(hex);  // the pastel on light
+  const INK_L = hex('#F3F4F8'), INK_D = hex('#0B0B0F');
+  // the film turns from night to day at the flash (20.2s), hidden under it
+  let NOW = 0;
+  const lit = () => ss(NOW, 20.12, 20.3);
+  const pal = i => mix(DARK[i], LIGHT[i], lit());
+  const ink = () => mix(INK_L, INK_D, lit());
+  const palAt = u => {
+    const s = [0, .34, .67, 1]; let k = 0; while (k < 2 && u > s[k + 1]) k++;
+    return mix(pal(k), pal(k + 1), clamp((u - s[k]) / (s[k + 1] - s[k])));
+  };
+  const pastel = (x0, x1) => {
+    const g = ctx.createLinearGradient(x0, 0, x1, 0);
+    [0, .34, .67, 1].forEach((s, i) => g.addColorStop(s, rgba(pal(i))));
+    return g;
+  };
+
+  // ---------- the core apps (aOS/app.js: names, Sea glass tints; welcome.js: taglines) ----------
+  const APPS = [
+    ['mail', 'Mail', 'A calmer Gmail inbox', '127,147,194'],
+    ['calendar', 'Calendar', 'The Family calendar, everywhere', '192,138,132'],
+    ['news', 'News', 'Headlines, scores and your teams', '160,141,123'],
+    ['weather', 'Weather', 'The forecast, radar and alerts', '110,162,183'],
+    ['notes', 'Notes', 'Notes, reminders and lists', '111,165,151'],
+    ['podcasts', 'Podcasts', 'Your shows, ready to play', '141,132,190'],
+    ['travel', 'Travel', 'Every trip, all in one place', '201,151,110'],
+    ['places', 'Places', 'Where to go, and where you’ve been', '143,165,112'],
+    ['fitness', 'Fitness', 'A simple workout log', '107,127,145'],
+    ['drinks', 'Drinks', 'A simple log of what you drink', '169,117,144'],
+    ['house', 'Home', 'Your whole house in one place', '188,156,104'],
+  ].map(([id, name, tag, h]) => ({ id, name, tag, hue: h.split(',').map(Number) }));
+  const AOS_HUE = [129, 147, 188];
+
+  // The sky: the dark of the wait, a deep blue as the date arrives, colour as the apps do, then day.
+  const SKY = [
+    [0, '#040507', '#07080C'], [6.5, '#05070C', '#0A0C14'], [8.1, '#080B15', '#0E1222'], [11.5, '#0B1024', '#161B36'],
+    [17.5, '#1A2042', '#2B2B50'], [20.12, '#272F58', '#3E3B62'], [20.3, '#E6ECF6', '#F6EAE2'], [30, '#EEF1F7', '#F8EEE6'],
+  ].map(([k, a, b]) => [k, hex(a), hex(b)]);
+  const sky = t => {
+    let i = 0; while (i < SKY.length - 2 && t > SKY[i + 1][0]) i++;
+    const [k0, a0, b0] = SKY[i], [k1, a1, b1] = SKY[i + 1];
+    const u = ss(t, k0, k1);
+    return [mix(a0, a1, u), mix(b0, b1, u)];
+  };
+
+  // ---------- stage ----------
+  let DPR = 1, CW = W0, CH = H0, S = 1, OX = 0, OY = 0, L = 0, R = W0, TOP = 0, B = H0;
+  function resize() {
+    DPR = EXPORT ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+    CW = window.innerWidth; CH = window.innerHeight;
+    cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR);
+    S = Math.min(CW / W0, CH / H0); OX = (CW - W0 * S) / 2; OY = (CH - H0 * S) / 2;
+    L = -OX / S; R = W0 + OX / S; TOP = -OY / S; B = H0 + OY / S;
+  }
+  const SPRITES = new Map();
+  function sprite(c) {
+    const key = c.map(v => v | 0).join(',');
+    if (SPRITES.has(key)) return SPRITES.get(key);
+    const s = document.createElement('canvas'); s.width = s.height = 128;
+    const g = s.getContext('2d'), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    r.addColorStop(0, rgba(c, 1)); r.addColorStop(.35, rgba(c, .45)); r.addColorStop(1, rgba(c, 0));
+    g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+    if (SPRITES.size > 400) SPRITES.clear();
+    SPRITES.set(key, s); return s;
+  }
+  const quant = c => c.map(v => Math.round(v / 6) * 6);
+  function glow(x, y, r, c, a) {
+    if (a <= .002 || r <= 0) return;
+    const ga = ctx.globalAlpha; ctx.globalAlpha = ga * Math.min(1, a); ctx.drawImage(sprite(quant(c)), x - r, y - r, r * 2, r * 2); ctx.globalAlpha = ga;
+  }
+  function rrPath(x, y, w, h, r, c = ctx) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    c.moveTo(x + r, y); c.lineTo(x + w - r, y); c.quadraticCurveTo(x + w, y, x + w, y + r);
+    c.lineTo(x + w, y + h - r); c.quadraticCurveTo(x + w, y + h, x + w - r, y + h); c.lineTo(x + r, y + h);
+    c.quadraticCurveTo(x, y + h, x, y + h - r); c.lineTo(x, y + r); c.quadraticCurveTo(x, y, x + r, y); c.closePath();
+  }
+  const rr = (x, y, w, h, r) => { ctx.beginPath(); rrPath(x, y, w, h, r); };
+  function star4(x, y, r, fill, rot = 0) {
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + rot + i * Math.PI / 4, q = i % 2 ? r * .3 : r; ctx.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); }
+    ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+  }
+
+  // ---------- the app icons, masked once ----------
+  const ICON = {};
+  function loadIcons() {
+    const one = (id, hue) => new Promise(done => {
+      const c = document.createElement('canvas'); c.width = c.height = 256;
+      const g = c.getContext('2d'); g.beginPath(); rrPath(0, 0, 256, 256, 58, g); g.clip();
+      const fallback = () => { const gr = g.createLinearGradient(0, 0, 256, 256); gr.addColorStop(0, rgba(mix(hue, INK_L, .35))); gr.addColorStop(1, rgba(hue)); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); };
+      fallback(); ICON[id] = c;
+      const im = new Image();
+      im.onload = () => { g.drawImage(im, 0, 0, 256, 256); done(); };
+      im.onerror = () => done();
+      im.src = `icons/${id}.webp`;
+    });
+    return Promise.all([...APPS.map(a => one(a.id, a.hue)), one('aos', AOS_HUE)]);
+  }
+  function icon(id, x, y, s, a = 1, rot = 0) {
+    if (a <= 0 || s <= 0) return;
+    const ga = ctx.globalAlpha; ctx.globalAlpha = ga * a;
+    if (rot) { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.drawImage(ICON[id], -s / 2, -s / 2, s, s); ctx.restore(); }
+    else ctx.drawImage(ICON[id], x - s / 2, y - s / 2, s, s);
+    ctx.globalAlpha = ga;
+  }
+
+  // ---------- the sparkle (as in the first teaser) ----------
+  function sparkle(x, y, r, a, rot) {
+    if (a <= 0 || r <= 0) return;
+    glow(x, y, r * 4.2, DARK[1], .6 * a);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const an = -Math.PI / 2 + i * Math.PI / 4, q = i % 2 ? r * .28 : r; ctx.lineTo(Math.cos(an) * q, Math.sin(an) * q); }
+    ctx.closePath();
+    const g = ctx.createLinearGradient(-r, -r, r, r); DARK.forEach((p, i) => g.addColorStop(i / 3, rgba(mix(p, INK_L, .35), a)));
+    ctx.fillStyle = g; ctx.fill(); ctx.restore();
+  }
+
+  // ======================================================================
+  // 1. The wait (0-8s): in the dark, a clock face ticks round, slowly, then faster.
+  // ======================================================================
+  const RC = [540, 800], RR = 330, NT = 60;
+  const handK = t => Math.pow(prog(t, .8, 7.0), 1.55) * NT;            // ticks passed: slow, then quicker
+  function drawTicks(t) {
+    if (t > 8.15) return;
+    const env = ss(t, .3, 1.4);
+    const k = handK(t), done = Math.floor(k);
+    const flash = ss(t, 7.0, 7.3);                                      // full circle: it all lights up
+    const cu = eio(prog(t, 7.35, 8.1)), rad = RR * (1 - cu), spin = cu * cu * Math.PI * 1.4;
+    const gone = 1 - ss(t, 8.0, 8.12);
+    ctx.lineCap = 'round';
+    for (let i = 0; i < NT; i++) {
+      const an = -Math.PI / 2 + i * TAU / NT + spin, long = i % 5 === 0;
+      const len = (long ? 38 : 20) * (1 - cu * .7), r0 = rad - len / 2, r1 = rad + len / 2;
+      const on = i < done ? 1 : 0, fresh = i === done - 1 ? 1 - prog(k - done, 0, .9) : 0;
+      let a = (.07 + .25 * on + .5 * fresh) * env;
+      a = lerp(a, .95, flash) * gone;
+      if (a <= 0) continue;
+      const col = mix(mix(INK_L, DARK[1], .3), palAt(i / NT), flash);
+      ctx.beginPath(); ctx.moveTo(RC[0] + Math.cos(an) * r0, RC[1] + Math.sin(an) * r0); ctx.lineTo(RC[0] + Math.cos(an) * r1, RC[1] + Math.sin(an) * r1);
+      ctx.lineWidth = long ? 5 : 3.5; ctx.strokeStyle = rgba(col, a); ctx.stroke();
+    }
+    if (t < 7.35) {                                                     // the hand: a small light going round
+      const step = Math.floor(k) + eo(clamp((k % 1) * 4));
+      const an = -Math.PI / 2 + step * TAU / NT, hx = RC[0] + Math.cos(an) * RR, hy = RC[1] + Math.sin(an) * RR;
+      const ha = env * (1 - flash);
+      ctx.beginPath(); ctx.arc(RC[0], RC[1], RR, -Math.PI / 2, an); ctx.lineWidth = 2; ctx.strokeStyle = rgba(DARK[1], .1 * ha); ctx.stroke();
+      glow(hx, hy, 70, DARK[1], .55 * ha);
+      ctx.beginPath(); ctx.arc(hx, hy, 6, 0, TAU); ctx.fillStyle = rgba(INK_L, .9 * ha); ctx.fill();
+    }
+    if (flash > 0) glow(RC[0], RC[1], 520 * (1 - cu * .6), DARK[1], .25 * flash * gone);
+  }
+  // something waits at the centre: a heartbeat, a little stronger each time
+  const BEATS_AT = [[2.6, .1], [4.6, .17], [6.1, .26], [6.85, .34]];
+  function drawHeart(t) {
+    if (t > 7.6) return;
+    let p = 0;
+    for (const [b, amp] of BEATS_AT) {
+      const d = t - b, d2 = t - b - .24;
+      if (d > 0) p += amp * Math.exp(-d * 4.5);
+      if (d2 > 0) p += amp * .6 * Math.exp(-d2 * 4.5);
+    }
+    if (p <= .003) return;
+    glow(RC[0], RC[1], 230, DARK[1], p);
+    ctx.globalAlpha = Math.min(1, p * 1.4); star4(RC[0], RC[1], 64, rgba(mix(DARK[1], INK_L, .3)), 0); ctx.globalAlpha = 1;
+  }
+
+  // ======================================================================
+  // 2. The turn (8-11.8s): the clock collapses into the sparkle; the date rolls in.
+  // ======================================================================
+  const UP = [540, 470];
+  function spkPos(t) {
+    const up = eio(prog(t, 8.7, 9.4)), down = eio(prog(t, 11.15, 11.75));
+    let x = lerp(RC[0], UP[0], up - down), y = lerp(RC[1], UP[1], up - down);
+    // at the end it flies up to twelve o'clock and becomes aOS
+    const tw = eio(prog(t, C_END, C_END + .55));
+    x = lerp(x, SLOT(0)[0], tw); y = lerp(y, SLOT(0)[1], tw) - Math.sin(Math.PI * tw) * 60;
+    return [x, y];
+  }
+  function drawSpark(t) {
+    if (t < 8.1 || t > C_END + .6) return;
+    // ignition: a shockwave and a flare
+    const sw = prog(t, 8.1, 9.3);
+    if (sw > 0 && sw < 1) {
+      ctx.beginPath(); ctx.arc(RC[0], RC[1], 40 + 760 * eo(sw), 0, TAU); ctx.lineWidth = 4 * (1 - sw) + 1; ctx.strokeStyle = rgba(INK_L, .55 * (1 - sw)); ctx.stroke();
+      ctx.beginPath(); ctx.arc(RC[0], RC[1], 30 + 520 * eo(prog(t, 8.18, 9.3)), 0, TAU); ctx.lineWidth = 2; ctx.strokeStyle = rgba(DARK[2], .4 * (1 - sw)); ctx.stroke();
+      glow(RC[0], RC[1], 620, DARK[1], .55 * Math.pow(1 - sw, 2));
+    }
+    const [x, y] = spkPos(t);
+    // each app it lets out, it pulses
+    let pulse = 0; ST.forEach(s => { const d = t - s; if (d > 0) pulse += Math.exp(-d * 7); });
+    const r = 46 * eback(prog(t, 8.1, 8.55)) * (1 + .18 * pulse) * (1 - ss(t, C_END + .3, C_END + .55));
+    sparkle(x, y, r, 1, t * .5 + pulse * .4);
+  }
+  const DATE = '10/10/26', DSZ = 176, DCY = 812;
+  function drawDate(t) {
+    if (t < 8.85 || t > 11.8) return;
+    ctx.font = `500 ${DSZ}px ${MONO}`; spacing('0px'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const adv = ctx.measureText('0').width * 1.04, x0 = CX - adv * DATE.length / 2, H = DSZ * 1.15;
+    const grad = pastel(x0, x0 + adv * DATE.length);
+    [...DATE].forEach((ch, i) => {
+      const x = x0 + adv * i + adv / 2;
+      const ou = eio(prog(t, 11.05 + i * .035, 11.45 + i * .035)), oy = -70 * ou, oa = 1 - ou;
+      if (oa <= 0) return;
+      if (ch === '/') {
+        const a = ss(t, 9.5 + i * .03, 9.9 + i * .03) * oa;
+        ctx.globalAlpha = a * .6; ctx.fillStyle = rgba(INK_L); ctx.fillText(ch, x, DCY + oy); ctx.globalAlpha = 1;
+        return;
+      }
+      const d = +ch, s0 = 8.9 + i * .07, dur = .7 + i * .06, u = prog(t, s0, s0 + dur);
+      const v = d + 10 * (2 + (i % 3)) * (1 - eo(u)), base = Math.floor(v), fr = v - base;
+      const settle = ss(t, s0 + dur, s0 + dur + .45), a = ss(t, s0, s0 + .25) * oa;
+      if (u >= 1) {
+        const pop = 1 - prog(t, s0 + dur, s0 + dur + .5);
+        glow(x, DCY, 150, DARK[i % 4], .35 * pop * pop * a);
+      }
+      ctx.save(); ctx.beginPath(); ctx.rect(x - adv / 2, DCY - H / 2 + oy, adv, H); ctx.clip();
+      [[base, -fr], [base + 1, 1 - fr]].forEach(([n, off]) => {
+        const da = a * Math.pow(1 - Math.abs(off), 1.5); if (da <= .01) return;
+        const dy = DCY + off * H * .8 + oy;
+        ctx.globalAlpha = da; ctx.fillStyle = rgba(INK_L); ctx.fillText(String(((n % 10) + 10) % 10), x, dy);
+        if (settle > 0 && off > -.5 && off < .5) { ctx.globalAlpha = da * settle; ctx.fillStyle = grad; ctx.fillText(ch, x, dy); }
+      });
+      ctx.restore(); ctx.globalAlpha = 1;
+    });
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  // ======================================================================
+  // 3. The core apps (11.8-20.2s): one by one out of the sparkle, round the clock face,
+  //    each adding its colour to the sky. aOS takes twelve o'clock. Then it's time.
+  // ======================================================================
+  const C0 = 11.85, DURS = [.95, .8, .7, .62, .56, .52, .48, .45, .43, .42, .44];
+  const ST = []; { let s = C0; DURS.forEach(d => { ST.push(s); s += d; }); }
+  const C_END = ST[ST.length - 1] + DURS[DURS.length - 1];            // about 18.2s
+  const SR = 400, POP = 250, SMALL = 124;
+  const SLOT = k => { const a = -Math.PI / 2 + k * TAU / 12; return [RC[0] + Math.cos(a) * SR, RC[1] + Math.sin(a) * SR, a]; };
+  const LAND = APPS.map((_, k) => ST[k] + DURS[k] + .55);
+  const AOS_LAND = C_END + .55;
+  const CV0 = 19.45, CV1 = 20.18;                                       // everything spins in to the centre
+  function converge(x, y, s, t) {
+    const cu = prog(t, CV0, CV1); if (cu <= 0) return [x, y, s, 0];
+    const e = cu * cu * cu, rot = TAU * 1.1 * cu * cu;
+    const dx = x - RC[0], dy = y - RC[1], r = Math.hypot(dx, dy) * (1 - e), a = Math.atan2(dy, dx) + rot;
+    return [RC[0] + Math.cos(a) * r, RC[1] + Math.sin(a) * r, s * (1 - .75 * e), cu];
+  }
+  // the colours the apps bring into the sky
+  const BLOBS = APPS.map((a, k) => {
+    const [x, y] = SLOT(k + 1);
+    return { x: RC[0] + (x - RC[0]) * 1.45 + (rnd() - .5) * 160, y: RC[1] + (y - RC[1]) * 1.45 + (rnd() - .5) * 220, r: 520 + rnd() * 220, c: a.hue, t: LAND[k] - .35, ph: rnd() * TAU };
+  });
+  function drawBlobs(t) {
+    if (t < 12 || t > 20.4) return;
+    const fade = 1 - ss(t, 20.1, 20.3);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const b of BLOBS) {
+      const a = .26 * ss(t, b.t, b.t + 1.3) * fade; if (a <= 0) continue;
+      glow(b.x + 40 * Math.sin(t * .4 + b.ph), b.y + 30 * Math.cos(t * .33 + b.ph), b.r, b.c, a);
+    }
+    glow(RC[0], RC[1], 760, AOS_HUE, .18 * ss(t, AOS_LAND - .3, AOS_LAND + .8) * fade);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  function drawRing(t) {
+    if (t < C0 || t > CV1 + .05) return;
+    const env = ss(t, C0, C0 + .6), cu = prog(t, CV0, CV1), e = cu * cu * cu, rad = SR * (1 - e);
+    // twelve places waiting to be filled
+    for (let k = 0; k < 12; k++) {
+      const [x, y] = SLOT(k), [cx, cy] = converge(x, y, 1, t);
+      const filled = k === 0 ? ss(t, AOS_LAND - .2, AOS_LAND) : ss(t, LAND[k - 1] - .2, LAND[k - 1]);
+      ctx.beginPath(); ctx.arc(cx, cy, 7 * (1 - e), 0, TAU); ctx.fillStyle = rgba(INK_L, .22 * env * (1 - filled)); ctx.fill();
+    }
+    // the clock face fills as they land
+    let fill = 0; LAND.forEach(l => { fill += ss(t, l - .25, l + .15); }); fill += ss(t, AOS_LAND - .25, AOS_LAND + .15);
+    const u = fill / 12; if (u <= 0) return;
+    const rot = TAU * 1.1 * cu * cu, a0 = -Math.PI / 2 + rot;
+    let stroke = rgba(DARK[1], .5);
+    if (ctx.createConicGradient) {
+      const g = ctx.createConicGradient(-Math.PI / 2 + rot, RC[0], RC[1]);
+      [0, .25, .5, .75, 1].forEach((s, i) => g.addColorStop(s, rgba(DARK[i % 4], .55)));
+      stroke = g;
+    }
+    ctx.beginPath(); ctx.arc(RC[0], RC[1], rad, a0, a0 + u * TAU); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = stroke; ctx.globalAlpha = env; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  const BURSTS = [];
+  function drawApps(t) {
+    if (t < C0 || t > CV1 + .05) return;
+    // the ones already round the clock first, the one arriving on top
+    const order = APPS.map((_, k) => k).sort((a, b) => (t < ST[a] + DURS[a] ? 1 : 0) - (t < ST[b] + DURS[b] ? 1 : 0));
+    for (const k of order) {
+      const s = ST[k], d = DURS[k]; if (t < s) continue;
+      const pu = prog(t, s, s + .34), fu = eio(prog(t, s + d, s + d + .55));
+      const [sx, sy, sa] = SLOT(k + 1);
+      // out to its place on the clock, on a little arc
+      const nx = -Math.sin(sa), ny = Math.cos(sa), arc = Math.sin(Math.PI * fu) * 70;
+      let x = lerp(RC[0], sx, fu) + nx * arc, y = lerp(RC[1], sy, fu) + ny * arc;
+      let size = lerp(POP * eback(pu), SMALL, fu);
+      const bob = fu >= 1 ? 5 * Math.sin(t * 1.8 + k) : 0; y += bob;
+      let cu; [x, y, size, cu] = converge(x, y, size, t);
+      const hue = APPS[k].hue;
+      glow(x, y, size * 1.25, hue, (.6 * (1 - fu) + .28) * ss(t, s, s + .2) * (1 - cu));
+      // landing: a ring and a few sparks in its colour
+      const lu = prog(t, LAND[k] - .02, LAND[k] + .6);
+      if (lu > 0 && lu < 1 && cu === 0) {
+        ctx.beginPath(); ctx.arc(sx, sy + bob, 64 + 70 * eo(lu), 0, TAU); ctx.lineWidth = 3; ctx.strokeStyle = rgba(mix(hue, INK_L, .4), .7 * (1 - lu)); ctx.stroke();
+        for (let i = 0; i < 6; i++) {
+          const an = sa + (i - 2.5) * .45, rr2 = 70 + 110 * eo(lu);
+          ctx.globalAlpha = 1 - lu; star4(sx + Math.cos(an) * rr2, sy + bob + Math.sin(an) * rr2, 10 * (1 - lu * .6), rgba(mix(hue, INK_L, .5)), lu * 2); ctx.globalAlpha = 1;
+        }
+      }
+      icon(APPS[k].id, x, y, size, ss(t, s, s + .12), (1 - pu) * .35 * (k % 2 ? 1 : -1));
+    }
+    // aOS, at twelve
+    const au = prog(t, C_END + .3, AOS_LAND + .1);
+    if (au > 0) {
+      const [sx, sy] = SLOT(0);
+      let [x, y, size, cu] = converge(sx, sy + (au >= 1 ? 5 * Math.sin(t * 1.8) : 0), SMALL * eback(au), t);
+      glow(x, y, size * 1.6, AOS_HUE, .55 * (1 - cu));
+      const lu = prog(t, AOS_LAND, AOS_LAND + .8);
+      if (lu > 0 && lu < 1) { ctx.beginPath(); ctx.arc(sx, sy, 64 + 120 * eo(lu), 0, TAU); ctx.lineWidth = 4; ctx.strokeStyle = rgba(INK_L, .8 * (1 - lu)); ctx.stroke(); }
+      icon('aos', x, y, size, ss(au, 0, .3));
+    }
+    // the spin in: streaks of light behind them
+    const cu = prog(t, CV0, CV1);
+    if (cu > 0) glow(RC[0], RC[1], 300 + 500 * cu, INK_L, .5 * cu * cu);
+  }
+  // which app is arriving, said underneath
+  function drawNames(t) {
+    if (t < C0 || t > C_END + .2) return;
+    let k = -1; ST.forEach((s, i) => { if (t >= s) k = i; });
+    if (k < 0) return;
+    const s = ST[k], next = k < APPS.length - 1 ? ST[k + 1] : C_END + .15;
+    const a = ss(t, s + .04, s + .18) * (1 - ss(t, next - .1, next)), dy = 22 * (1 - eo(prog(t, s, s + .35)));
+    if (a <= 0) return;
+    const app = APPS[k];
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.font = `700 96px ${FAM}`; spacing('-1.3px');
+    ctx.globalAlpha = a; ctx.fillStyle = rgba(INK_L); ctx.fillText(app.name, CX, 1580 + dy);
+    ctx.font = `500 42px ${FAM}`; spacing('-.3px');
+    ctx.globalAlpha = a * .62; ctx.fillStyle = rgba(mix(INK_L, app.hue, .25)); ctx.fillText(app.tag, CX, 1652 + dy);
+    ctx.font = `500 30px ${MONO}`; spacing('2px');
+    ctx.globalAlpha = a * .45; ctx.fillStyle = rgba(INK_L); ctx.fillText(`${String(k + 1).padStart(2, '0')} / ${APPS.length}`, CX, 1736 + dy);
+    ctx.globalAlpha = 1; ctx.textAlign = 'left'; spacing('0px');
+  }
+  function drawKicker(t) {
+    const a = ss(t, 12.0, 12.6) * (1 - ss(t, C_END - .2, C_END + .3)) * .6; if (a <= 0) return;
+    ctx.font = `500 32px ${MONO}`; spacing('7px'); ctx.textAlign = 'center';
+    ctx.fillStyle = rgba(INK_L, a); ctx.fillText('THE CORE APPS', CX + 3.5, 250);
+    ctx.textAlign = 'left'; spacing('0px');
+  }
+
+  // dust in the dark: it drifts up, then takes on the apps' colours
+  const MOTES = Array.from({ length: 110 }, () => ({ x: rnd(), y: rnd(), v: 6 + rnd() * 22, s: 1.2 + rnd() * 2.6, a: .05 + rnd() * .22, ph: rnd() * TAU, c: (rnd() * APPS.length) | 0 }));
+  function drawMotes(t) {
+    if (t > 20.25) return;
+    const env = ss(t, .2, 2.5), tint = ss(t, 12.5, 18.5), boost = 1 + 1.6 * ss(t, 11.5, 18);
+    for (const m of MOTES) {
+      const x = L + m.x * (R - L) + 18 * Math.sin(t * .3 + m.ph), span = B - TOP + 100;
+      const y = TOP - 50 + ((m.y * span - m.v * t * (1 + tint)) % span + span) % span;
+      const a = m.a * env * boost * (.6 + .4 * Math.sin(t * 1.7 + m.ph)); if (a <= 0) continue;
+      ctx.beginPath(); ctx.arc(x, y, m.s * (1 + tint * .5), 0, TAU); ctx.fillStyle = rgba(mix(mix(INK_L, DARK[1], .3), APPS[m.c].hue, tint), Math.min(1, a)); ctx.fill();
+    }
+  }
+  function drawVignette(t) {
+    const a = .6 * (1 - ss(t, 12, 19.5)); if (a <= 0) return;
+    ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const g = ctx.createRadialGradient(CW / 2, CH * .42, Math.min(CW, CH) * .2, CW / 2, CH * .42, Math.max(CW, CH) * .8);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${a})`);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH); ctx.restore();
+  }
+
+  // ======================================================================
+  // 4. The apex (20.2-26.6s): light, colour, confetti, and an invite.
+  // ======================================================================
+  const AUR = Array.from({ length: 8 }, (_, i) => ({ c: i % 4, x: rnd(), y: rnd(), r: 620 + rnd() * 380, sp: .12 + rnd() * .18, ph: rnd() * TAU, d: .55 + rnd() * .3 }));
+  function drawAurora(t) {
+    if (t < 20.15) return;
+    for (const b of AUR) {
+      const x = lerp(L - 150, R + 150, b.x) + 220 * Math.sin(t * b.sp + b.ph), y = lerp(TOP + 100, B - 100, b.y) + 260 * Math.cos(t * b.sp * .8 + b.ph);
+      glow(x, y, b.r, mix(DARK[b.c], LIGHT[b.c], .3), .62 * b.d);
+    }
+  }
+  function drawRays(t) {
+    const a = ss(t, 20.2, 20.7) * (1 - .55 * ss(t, 26.3, 27.2)); if (a <= 0) return;
+    const c = t < 26.6 ? [540, 800] : [540, lerp(800, 820, ss(t, 26.6, 27.2))];
+    const g = ctx.createRadialGradient(c[0], c[1], 0, c[0], c[1], 1250);
+    g.addColorStop(0, `rgba(255,255,255,${.55 * a})`); g.addColorStop(.5, `rgba(255,255,255,${.18 * a})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.beginPath();
+    const n = 18, rot = t * .06;
+    for (let i = 0; i < n; i++) {
+      const a0 = rot + i * TAU / n, w = TAU / n * .32;
+      ctx.moveTo(c[0], c[1]); ctx.lineTo(c[0] + Math.cos(a0 - w) * 1400, c[1] + Math.sin(a0 - w) * 1400); ctx.lineTo(c[0] + Math.cos(a0 + w) * 1400, c[1] + Math.sin(a0 + w) * 1400); ctx.closePath();
+    }
+    ctx.fillStyle = g; ctx.fill();
+  }
+  // confetti, in the apps' colours
+  const CONF = Array.from({ length: 190 }, (_, i) => {
+    const an = rnd() * TAU, sp = 700 + rnd() * 1700;
+    return { vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - 450, k: 1.5 + rnd() * 1.1, sh: i % 4, c: i % 3 ? APPS[i % APPS.length].hue : LIGHT[i % 4], s: 10 + rnd() * 16, sp: (rnd() - .5) * 14, ph: rnd() * TAU, t0: 20.2 + rnd() * .12 };
+  });
+  function drawConfetti(t) {
+    if (t < 20.2 || t > 26.2) return;
+    const G = 760;
+    for (const p of CONF) {
+      const dt = t - p.t0; if (dt <= 0) continue;
+      const e = 1 - Math.exp(-p.k * dt);
+      const x = RC[0] + p.vx / p.k * e + 30 * Math.sin(dt * 3 + p.ph) * ss(dt, .5, 1.5);
+      const y = RC[1] + G * dt / p.k + (p.vy - G / p.k) * e / p.k;
+      const a = 1 - ss(dt, 3.4, 5.2); if (a <= 0) continue;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(p.ph + p.sp * dt * .3); ctx.globalAlpha = a;
+      ctx.fillStyle = rgba(p.c);
+      if (p.sh === 0) star4(0, 0, p.s * .9, rgba(p.c));
+      else if (p.sh === 1) { ctx.scale(1, Math.cos(p.sp * dt + p.ph)); rr(-p.s / 2, -p.s * .35, p.s, p.s * .7, 3); ctx.fill(); }
+      else if (p.sh === 2) { ctx.beginPath(); ctx.arc(0, 0, p.s * .32, 0, TAU); ctx.fill(); }
+      else { ctx.scale(Math.cos(p.sp * dt + p.ph), 1); rr(-p.s * .18, -p.s * .7, p.s * .36, p.s * 1.4, 2); ctx.fill(); }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // the invite
+  const CARD = { w: 840, h: 624, r: 64, cy: 806 }, PAD = 64;
+  const cardIn = t => prog(t, 20.5, 21.35), cardOut = t => eio(prog(t, 26.3, 26.95));
+  const shine = (x0, w, sh) => {
+    const bw = w * .5, bx = lerp(x0 - bw, x0 + w + bw * .4, sh);
+    const g = ctx.createLinearGradient(bx - bw / 2, 0, bx + bw / 2, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, 'rgba(255,255,255,.75)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    return g;
+  };
+  // the card's aOS icon, in stage units: it stays on screen at the end
+  const CARD_ICON = [CX - 840 / 2 + PAD + 64, 806 - 624 / 2 + PAD + 64];
+  const TAP = 24.55;
+  function drawCard(t) {
+    const iu = cardIn(t), ou = cardOut(t);
+    if (iu <= 0 || ou >= 1) return;
+    const sc = lerp(.9, 1, eback(iu)) * lerp(1, .2, ou), a = ss(t, 20.5, 20.85) * (1 - ss(t, 26.55, 26.95));
+    const cy = CARD.cy + 560 * (1 - eo(iu)) + 6 * Math.sin(t * 1.3) * iu + 90 * ou;
+    const { w, h } = CARD, x0 = -w / 2, y0 = -h / 2;
+    ctx.save(); ctx.translate(CX, cy); ctx.scale(sc, sc); ctx.rotate(.05 * (1 - eo(iu))); ctx.globalAlpha = a;
+    ctx.shadowColor = 'rgba(64,62,100,.22)'; ctx.shadowBlur = 90; ctx.shadowOffsetY = 34;
+    rr(x0, y0, w, h, CARD.r); ctx.fillStyle = 'rgba(255,255,255,.84)'; ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(11,11,15,.06)'; ctx.stroke();
+    // what's on it, a beat after the card
+    const el = d => ss(t, 20.95 + d, 21.4 + d), sl = d => 18 * (1 - eo(prog(t, 20.95 + d, 21.6 + d)));
+    const ia = el(0) * (1 - ss(t, 26.25, 26.4));                      // the icon leaves the card at the end (drawEnd)
+    icon('aos', x0 + PAD + 64, y0 + PAD + 64 + sl(0), 128, ia);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.globalAlpha = a * el(.08); ctx.font = `800 54px ${FAM}`; spacing('-1px'); ctx.fillStyle = rgba(INK_D); ctx.fillText('aOS', x0 + PAD + 160, y0 + PAD + 58 + sl(.08));
+    ctx.font = `500 32px ${FAM}`; spacing('-.2px'); ctx.fillStyle = rgba(INK_D, .5); ctx.fillText('The AllisonOS app store', x0 + PAD + 160, y0 + PAD + 106 + sl(.08));
+    ctx.globalAlpha = a * el(.18); ctx.font = `800 96px ${FAM}`; spacing('-2.4px'); ctx.fillStyle = rgba(INK_D); ctx.fillText('You’re invited', x0 + PAD - 4, y0 + 334 + sl(.18));
+    ctx.globalAlpha = a * el(.28); ctx.font = `500 40px ${FAM}`; spacing('-.3px'); ctx.fillStyle = rgba(INK_D, .58); ctx.fillText('Join the Allison family on aOS.', x0 + PAD, y0 + 398 + sl(.28));
+    // the button, and a tap on it
+    const press = 1 - .05 * Math.sin(Math.PI * prog(t, TAP, TAP + .22));
+    const bw = w - PAD * 2, bh = 104, bx = x0 + PAD, by = y0 + 448 + sl(.38);
+    ctx.globalAlpha = a * el(.38);
+    ctx.save(); ctx.translate(bx + bw / 2, by + bh / 2); ctx.scale(press, press); ctx.translate(-bx - bw / 2, -by - bh / 2);
+    rr(bx, by, bw, bh, bh / 2); ctx.fillStyle = pastel(bx, bx + bw); ctx.fill();
+    const ru = prog(t, TAP + .02, TAP + .9);
+    if (ru > 0 && ru < 1) { ctx.save(); rr(bx, by, bw, bh, bh / 2); ctx.clip(); ctx.beginPath(); ctx.arc(bx + bw / 2, by + bh / 2, 40 + 420 * eo(ru), 0, TAU); ctx.fillStyle = `rgba(255,255,255,${.45 * (1 - ru)})`; ctx.fill(); ctx.restore(); }
+    const sh = prog(t, 21.9, 22.8);
+    if (sh > 0 && sh < 1) { ctx.save(); rr(bx, by, bw, bh, bh / 2); ctx.clip(); ctx.fillStyle = shine(bx, bw, sh); ctx.fillRect(bx, by, bw, bh); ctx.restore(); }
+    ctx.textAlign = 'center'; ctx.font = `700 42px ${FAM}`; spacing('-.4px'); ctx.fillStyle = '#fff';
+    const sw = ss(t, TAP + .15, TAP + .4), ga = ctx.globalAlpha;
+    ctx.globalAlpha = ga * (1 - sw); ctx.fillText('Accept invite', bx + bw / 2, by + bh / 2 + 15 + 14 * sw);
+    if (sw > 0) {
+      ctx.globalAlpha = ga * sw; const ty = by + bh / 2 + 15 - 14 * (1 - sw), tw = ctx.measureText('You’re in').width;
+      ctx.fillText('You’re in', bx + bw / 2 + 24, ty);
+      const cx2 = bx + bw / 2 - tw / 2 - 6, cy2 = ty - 14;
+      ctx.beginPath(); ctx.moveTo(cx2 - 14, cy2); ctx.lineTo(cx2 - 4, cy2 + 10); ctx.lineTo(cx2 + 14 * ss(t, TAP + .2, TAP + .55), cy2 - 12 * ss(t, TAP + .2, TAP + .55));
+      ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#fff'; ctx.stroke();
+    }
+    ctx.restore();
+    ctx.restore(); ctx.globalAlpha = 1; ctx.textAlign = 'left'; spacing('0px');
+    // a fingertip
+    const fa = ss(t, TAP - .45, TAP - .15) * (1 - ss(t, TAP + .25, TAP + .6));
+    if (fa > 0) {
+      const fx = CX + 140 + 30 * (1 - eo(prog(t, TAP - .45, TAP))), fy = cy - h / 2 + 448 + bh / 2 + 40 * (1 - eo(prog(t, TAP - .45, TAP)));
+      const fs = 1 - .12 * Math.sin(Math.PI * prog(t, TAP, TAP + .22));
+      ctx.beginPath(); ctx.arc(fx, fy, 44 * fs, 0, TAU); ctx.fillStyle = `rgba(255,255,255,${.55 * fa})`; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = `rgba(11,11,15,${.12 * fa})`; ctx.stroke();
+    }
+    // sparks off the button
+    const bu = prog(t, TAP + .05, TAP + 1.1);
+    if (bu > 0 && bu < 1) {
+      const ox = CX, oy = cy - h / 2 + 448 + bh / 2;
+      for (let i = 0; i < 14; i++) {
+        const an = -Math.PI / 2 + (i - 6.5) * .3 + (i % 2 ? .08 : -.08), r = 70 + 330 * eo(bu) * (i % 3 ? 1 : .7);
+        ctx.globalAlpha = 1 - bu; star4(ox + Math.cos(an) * r * 1.5, oy + Math.sin(an) * r, 14 * (1 - .5 * bu), rgba(LIGHT[i % 4]), bu * 3);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  // the countdown: 24 hours, starting now
+  function drawCountdown(t) {
+    const a = ss(t, 22.0, 22.5) * (1 - ss(t, 26.2, 26.6)) * .55; if (a <= 0) return;
+    const el = t < 22.6 ? 0 : Math.floor(t - 22.6) + 1, s = 86400 - el;
+    const p = n => String(n).padStart(2, '0');
+    const txt = `${p(Math.floor(s / 3600))}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}`;
+    ctx.font = `500 46px ${MONO}`; spacing('4px'); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = rgba(INK_D, a); ctx.fillText(txt, CX + 2, 1784);
+    ctx.textAlign = 'left'; spacing('0px');
+  }
+
+  // ======================================================================
+  // 5. The end (26.6-30s): aOS, and tomorrow.
+  // ======================================================================
+  const MARK = { FS: 300, BY: 1046 };
+  function drawEnd(t) {
+    if (t < 26.2) return;
+    // the card's icon rises above the name
+    const mu = eio(prog(t, 26.3, 27.1)), ou = cardOut(t);
+    const fx = lerp(CX + (CARD_ICON[0] - CX) * lerp(1, .2, ou), CX, mu), fy = lerp(CARD.cy + 90 * ou + (CARD_ICON[1] - CARD.cy) * lerp(1, .2, ou), 640, mu);
+    const fs = lerp(128 * lerp(1, .2, ou), 168, mu);
+    if (t >= 26.25) {
+      const pop = prog(t, 27.0, 27.7);
+      if (pop > 0 && pop < 1) { ctx.beginPath(); ctx.arc(CX, 640, 90 + 160 * eo(pop), 0, TAU); ctx.lineWidth = 3; ctx.strokeStyle = rgba(LIGHT[1], .5 * (1 - pop)); ctx.stroke(); }
+      ctx.save(); ctx.shadowColor = 'rgba(64,62,100,.2)'; ctx.shadowBlur = 50 * mu; ctx.shadowOffsetY = 18 * mu;
+      icon('aos', fx, fy + 5 * Math.sin(t * 1.5) * mu, fs, 1); ctx.restore();
+    }
+    // the name
+    const nu = prog(t, 26.75, 27.6), na = ss(t, 26.75, 27.1);
+    if (na > 0) {
+      ctx.font = `800 ${MARK.FS}px ${FAM}`; spacing(`${-.032 * MARK.FS}px`); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      const w = ctx.measureText('aOS').width, x0 = CX - w / 2, sc = eback(nu);
+      ctx.save(); ctx.translate(CX, MARK.BY - 100); ctx.scale(sc, sc); ctx.translate(-CX, -(MARK.BY - 100)); ctx.globalAlpha = na;
+      ctx.shadowColor = 'rgba(64,62,100,.16)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 14;
+      ctx.fillStyle = pastel(x0, x0 + w); ctx.fillText('aOS', x0, MARK.BY); ctx.shadowColor = 'transparent';
+      const sh = prog(t, 28.1, 28.9);
+      if (sh > 0 && sh < 1) { ctx.fillStyle = shine(x0, w, sh); ctx.fillText('aOS', x0, MARK.BY); }
+      ctx.restore(); ctx.globalAlpha = 1; spacing('0px');
+    }
+    const rw = 520 * eio(prog(t, 27.4, 28.3));
+    if (rw > 0) { ctx.globalAlpha = .85; ctx.fillStyle = pastel(CX - rw / 2, CX + rw / 2); ctx.fillRect(CX - rw / 2, MARK.BY + 64, rw, 4); ctx.globalAlpha = 1; }
+    // a last burst where the card closed
+    const bu = prog(t, 26.85, 28.0);
+    if (bu > 0 && bu < 1) {
+      glow(CX, 900, 500, INK_L, .7 * Math.pow(1 - bu, 2));
+      for (let i = 0; i < 20; i++) {
+        const an = i * TAU / 20 + .2, r = 60 + 520 * eo(bu) * (i % 2 ? 1 : .72);
+        ctx.globalAlpha = 1 - bu; star4(CX + Math.cos(an) * r, 900 + Math.sin(an) * r, 16 * (1 - .5 * bu), rgba(LIGHT[i % 4]), bu * 2); ctx.globalAlpha = 1;
+      }
+    }
+  }
+  // little sparkles drifting up in the light
+  const FLOAT = Array.from({ length: 46 }, () => ({ x: rnd(), y: rnd(), v: 20 + rnd() * 50, s: 6 + rnd() * 12, c: (rnd() * 4) | 0, ph: rnd() * TAU }));
+  function drawFloaters(t) {
+    const env = ss(t, 20.6, 21.6); if (env <= 0) return;
+    for (const f of FLOAT) {
+      const span = B - TOP + 80, x = L + f.x * (R - L) + 20 * Math.sin(t * .7 + f.ph);
+      const y = TOP - 40 + ((f.y * span - f.v * (t - 20)) % span + span) % span;
+      const tw = .5 + .5 * Math.sin(t * 2.4 + f.ph);
+      ctx.globalAlpha = env * (.35 + .5 * tw); star4(x, y, f.s * (.7 + .3 * tw), rgba(LIGHT[f.c]), t * .3 + f.ph); ctx.globalAlpha = 1;
+    }
+  }
+
+  // ---------- the words ----------
+  const BEATS = [
+    { a: 1.1, b: 3.95, lines: ['You’ve been waiting.'], dim: .8, weight: 600, size: 76 },
+    { a: 4.2, b: 7.3, lines: ['Thank you for', 'your *patience.*'], dim: .9, weight: 600, size: 76 },
+    { a: 9.55, b: 11.5, lines: ['aOS launches *tomorrow.*'] },
+    { a: AOS_LAND - .1, b: 20.0, lines: ['It’s *time.*'], size: 104 },
+    { a: 21.25, b: 26.45, lines: ['Your invite to aOS arrives', 'in the next *24 hours.*'] },
+    { a: 27.55, b: 99, lines: ['See you *tomorrow.*'], y: [MARK.BY + 196], size: 80 },
+    { a: 27.85, b: 99, lines: ['Saturday · 10/10/26'], y: [MARK.BY + 276], size: 42, weight: 500, dim: .55, mono: true },
+  ];
+  const segs = s => s.split(/(\*[^*]+\*)/).filter(Boolean).map(p => p[0] === '*' ? { t: p.slice(1, -1), p: 1 } : { t: p });
+  function drawWords(t) {
+    for (const bt of BEATS) {
+      if (t < bt.a || t > bt.b) continue;
+      let size = bt.size || 84; const weight = bt.weight || 700;
+      const n = bt.lines.length, ys = bt.y || (n === 2 ? [1556, 1652] : [1604]);
+      const setFont = () => { ctx.font = `${weight} ${size}px ${bt.mono ? MONO : FAM}`; spacing(bt.mono ? '2px' : (-.016 * size).toFixed(2) + 'px'); };
+      setFont(); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      const widest = Math.max(...bt.lines.map(l => ctx.measureText(l.replace(/\*/g, '')).width));
+      if (widest > 940) { size = Math.floor(size * 940 / widest); setFont(); }   // fit the phone
+      bt.lines.forEach((line, li) => {
+        const tin = bt.a + li * .14;
+        const out = ss(t, bt.b - .4, bt.b);
+        const al = ss(t, tin, tin + .6) * (1 - out) * (bt.dim || 1);
+        if (al <= 0) return;
+        const dy = 26 * (1 - eo(prog(t, tin, tin + .8))) - 14 * out;
+        const sg = segs(line), ws = sg.map(s => ctx.measureText(s.t).width);
+        let x = CX - ws.reduce((a, b) => a + b, 0) / 2;
+        ctx.globalAlpha = al;
+        sg.forEach((s, i) => { ctx.fillStyle = s.p ? pastel(x, x + ws[i]) : rgba(ink()); ctx.fillText(s.t, x, ys[li] + dy); x += ws[i]; });
+        ctx.globalAlpha = 1;
+      });
+    }
+    spacing('0px');
+  }
+
+  // ---------- one frame ----------
+  function render(t) {
+    t = clamp(t, 0, DUR);
+    NOW = t;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = 1;
+    const [top, bot] = sky(t);
+    const g = ctx.createLinearGradient(0, 0, 0, CH); g.addColorStop(0, rgba(top)); g.addColorStop(1, rgba(bot));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
+    ctx.setTransform(DPR * S, 0, 0, DPR * S, DPR * OX, DPR * OY);
+    drawBlobs(t); drawAurora(t);
+    drawVignette(t);
+    drawRays(t); drawMotes(t); drawFloaters(t);
+    drawTicks(t); drawHeart(t);
+    drawRing(t); drawSpark(t); drawDate(t); drawApps(t); drawKicker(t); drawNames(t);
+    drawConfetti(t); drawCard(t); drawCountdown(t); drawEnd(t);
+    drawWords(t);
+    // the flash, as everything meets in the middle
+    const fl = ss(t, 19.95, 20.2) * (1 - ss(t, 20.22, 21.2));
+    if (fl > 0) { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = `rgba(255,255,255,${.96 * fl})`; ctx.fillRect(0, 0, CW, CH); }
+    document.body.style.background = rgba(bot);
+  }
+
+  // ---------- playback ----------
+  const bar = document.getElementById('progress'), pill = document.getElementById('pill');
+  let t0 = 0, held = 0, playing = false, raf = 0;
+  const now = () => performance.now() / 1000;
+  function tick() {
+    const t = now() - t0;
+    render(t); bar.style.transform = `scaleX(${clamp(t / DUR)})`;
+    if (t >= DUR) { playing = false; held = DUR; pill.textContent = 'Replay'; pill.hidden = false; return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play(from = 0) { cancelAnimationFrame(raf); t0 = now() - from; playing = true; pill.hidden = true; raf = requestAnimationFrame(tick); }
+  function pause() { if (!playing) return; cancelAnimationFrame(raf); held = now() - t0; playing = false; pill.textContent = 'Play'; pill.hidden = false; }
+  pill.addEventListener('click', e => { e.stopPropagation(); play(pill.textContent === 'Play' ? held : 0); });
+  cv.addEventListener('click', () => { if (playing) pause(); else if (pill.textContent === 'Play') play(held); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('resize', () => { resize(); if (!playing) render(held); });
+
+  async function start() {
+    resize();
+    try {
+      await Promise.race([
+        Promise.all([
+          ...['600 76px Inter', '700 84px Inter', '800 300px Inter', '500 42px Inter'].map(f => document.fonts.load(f, 'aOS You’re invited 24')),
+          document.fonts.load('500 176px "JetBrains Mono"', '10/26:'), loadIcons(),
+        ]),
+        new Promise(r => setTimeout(r, 3000)),
+      ]);
+    } catch (e) { /* the system fonts and plain tiles still draw */ }
+    if (EXPORT) { window.renderAt = render; render(0); window.__ready = true; return; }
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { held = DUR; render(DUR); pill.textContent = 'Replay'; pill.hidden = false; return; }
+    play(0);
+  }
+  start();
+})();
+</script>
+</body>
+</html>
