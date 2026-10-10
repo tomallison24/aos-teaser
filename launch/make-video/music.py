@@ -137,6 +137,9 @@ for k, s in enumerate(ST):
     place(bell(SCALE[k] * 2, .5, .1), LAND[k], .03, pan)
 for fr in f('D5', 'F#5', 'A5'):
     place(bell(fr, 2.5, 1.0), AOS_LAND, .08, 0)
+# the Allison family apps begin (the sixth app): a soft chord to mark it
+for fr in f('G4', 'B4', 'D5'):
+    place(bell(fr, 2.0, .9), ST[5], .05, 0)
 
 # the build, a breath, and the drop
 swell(18.7, 20.1, .3, 300, 1200, 2500, 14000, curve=3)

@@ -7,8 +7,9 @@
 (() => {
   'use strict';
   const AOS = 'https://tomallison24-news.pages.dev/aOS/';
-  const APPS = ['mail', 'calendar', 'news', 'weather', 'notes', 'podcasts', 'travel', 'places', 'fitness', 'drinks', 'house'];
-  const HUES = ['#7F93C2', '#C08A84', '#A08D7B', '#6EA2B7', '#6FA597', '#8D84BE', '#C9976E', '#8FA570', '#6B7F91', '#A97590', '#BC9C68'];
+  // the core apps, then the Allison family's own (as aOS shows them)
+  const CORE = ['weather', 'notes', 'news', 'mail', 'calendar'], FAMILY = ['podcasts', 'travel', 'places', 'fitness', 'drinks', 'house'];
+  const HUES = ['#6EA2B7', '#6FA597', '#A08D7B', '#7F93C2', '#C08A84', '#8D84BE', '#C9976E', '#8FA570', '#6B7F91', '#A97590', '#BC9C68'];
   const $ = id => document.getElementById(id);
   const body = document.body;
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -55,7 +56,10 @@
     $('note').textContent = 'Next: Face ID (or your fingerprint) makes your account, then aOS shows you how to add it to your Home Screen. Open this on your phone, in Safari on iPhone or Chrome on Android. Your invite works once, within 24 hours of when it was sent.';
   }
   const apps = $('apps');
-  APPS.forEach((id, i) => { const im = new Image(); im.src = `../launch/icons/${id}.webp`; im.alt = ''; im.style.transitionDelay = (1.1 + i * .05) + 's'; apps.appendChild(im); });
+  [...CORE, ...FAMILY].forEach((id, i) => {
+    const im = new Image(); im.src = `../launch/icons/${id}.webp`; im.alt = ''; im.style.transitionDelay = (1.1 + i * .05 + (i >= CORE.length ? .15 : 0)) + 's';
+    $(i < CORE.length ? 'coreIcons' : 'familyIcons').appendChild(im);
+  });
 
   // ---- the joke, then day ----
   let timers = [];
