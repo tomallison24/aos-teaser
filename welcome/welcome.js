@@ -8,8 +8,8 @@
   'use strict';
   const AOS = 'https://tomallison24-news.pages.dev/aOS/';
   // the core apps, then the Allison family's own (as aOS shows them)
-  const CORE = ['weather', 'notes', 'news', 'mail', 'calendar'], FAMILY = ['podcasts', 'travel', 'places', 'fitness', 'drinks', 'house'];
-  const HUES = ['#6EA2B7', '#6FA597', '#A08D7B', '#7F93C2', '#C08A84', '#8D84BE', '#C9976E', '#8FA570', '#6B7F91', '#A97590', '#BC9C68'];
+  const CORE = ['weather', 'notes', 'news', 'mail', 'calendar'], FAMILY = ['podcasts', 'travel', 'places', 'fitness', 'drinks', 'meals', 'house'];
+  const HUES = ['#6EA2B7', '#6FA597', '#A08D7B', '#7F93C2', '#C08A84', '#8D84BE', '#C9976E', '#8FA570', '#6B7F91', '#A97590', '#B5705A', '#BC9C68'];
   const $ = id => document.getElementById(id);
   const body = document.body;
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
