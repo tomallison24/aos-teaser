@@ -59,7 +59,7 @@
   .export .bar, .export .pill, .export .snd { display: none !important; }
 </style>
 
-<canvas id="film" role="img" aria-label="aOS launch teaser. In the dark, a clock ticks round: you've been waiting. Thank you for your patience. The clock collapses into the aOS sparkle and the date rolls in, 10/10/26: aOS launches tomorrow. The core apps arrive one by one, each adding its colour to the sky: Mail, Calendar, News, Weather, Notes, Podcasts, Travel, Places, Fitness, Drinks and Home, filling the clock face with aOS at twelve. It's time. A burst of light and confetti, and an invite card: You're invited. Expect your invite in the next 24h. Your invite to aOS arrives in the next 24 hours. aOS. See you tomorrow. Saturday, 10/10/26."></canvas>
+<canvas id="film" role="img" aria-label="aOS launch teaser. In the dark, a clock ticks round: you've been waiting. Thank you for your patience. The clock collapses into the aOS sparkle and the date rolls in, 10/10/26: aOS launches tomorrow. The core apps arrive one by one, each adding its colour to the sky: Weather, Notes, News, Mail and Calendar; then the Allison family apps: Podcasts, Travel, Places, Fitness, Drinks and Home, filling the clock face with aOS at twelve. It's time. A burst of light and confetti, and an invite card: You're invited. Expect your invite in the next 24h. Your invite to aOS arrives in the next 24 hours. aOS. See you tomorrow. Saturday, 10/10/26."></canvas>
 <div class="bar" aria-hidden="true"><i id="progress"></i></div>
 <button class="pill" id="pill" type="button" hidden>Replay</button>
 <button class="snd" id="snd" type="button" aria-label="Mute" hidden></button>
@@ -111,12 +111,13 @@
   };
 
   // ---------- the core apps (aOS/app.js: names, Sea glass tints; welcome.js: taglines) ----------
+  // the core apps first, then the Allison family's own (as aOS shows them)
   const APPS = [
-    ['mail', 'Mail', 'A calmer Gmail inbox', '127,147,194'],
-    ['calendar', 'Calendar', 'The Family calendar, everywhere', '192,138,132'],
-    ['news', 'News', 'Headlines, scores and your teams', '160,141,123'],
     ['weather', 'Weather', 'The forecast, radar and alerts', '110,162,183'],
     ['notes', 'Notes', 'Notes, reminders and lists', '111,165,151'],
+    ['news', 'News', 'Headlines, scores and your teams', '160,141,123'],
+    ['mail', 'Mail', 'A calmer Gmail inbox', '127,147,194'],
+    ['calendar', 'Calendar', 'The Family calendar, everywhere', '192,138,132'],
     ['podcasts', 'Podcasts', 'Your shows, ready to play', '141,132,190'],
     ['travel', 'Travel', 'Every trip, all in one place', '201,151,110'],
     ['places', 'Places', 'Where to go, and where you’ve been', '143,165,112'],
@@ -125,6 +126,7 @@
     ['house', 'Home', 'Your whole house in one place', '188,156,104'],
   ].map(([id, name, tag, h]) => ({ id, name, tag, hue: h.split(',').map(Number) }));
   const AOS_HUE = [129, 147, 188];
+  const N_CORE = 5;   // APPS[0..4] are the core apps; the rest are the Allison family apps
 
   // The sky: the dark of the wait, a deep blue as the date arrives, colour as the apps do, then day.
   const SKY = [
@@ -432,13 +434,16 @@
     ctx.font = `500 42px ${FAM}`; spacing('-.3px');
     ctx.globalAlpha = a * .62; ctx.fillStyle = rgba(mix(INK_L, app.hue, .25)); ctx.fillText(app.tag, CX, 1652 + dy);
     ctx.font = `500 30px ${MONO}`; spacing('2px');
-    ctx.globalAlpha = a * .45; ctx.fillStyle = rgba(INK_L); ctx.fillText(`${String(k + 1).padStart(2, '0')} / ${APPS.length}`, CX, 1736 + dy);
+    ctx.globalAlpha = a * .45; ctx.fillStyle = rgba(INK_L); const core = k < N_CORE, n = core ? N_CORE : APPS.length - N_CORE, j = core ? k + 1 : k + 1 - N_CORE;
+    ctx.fillText(`${String(j).padStart(2, '0')} / ${String(n).padStart(2, '0')}`, CX, 1736 + dy);
     ctx.globalAlpha = 1; ctx.textAlign = 'left'; spacing('0px');
   }
   function drawKicker(t) {
     const a = ss(t, 12.0, 12.6) * (1 - ss(t, C_END - .2, C_END + .3)) * .6; if (a <= 0) return;
+    const sw = ST[N_CORE] - .25, x1 = ss(t, sw - .2, sw), x2 = ss(t, sw, sw + .25);   // the label changes as the first family app arrives
     ctx.font = `500 32px ${MONO}`; spacing('7px'); ctx.textAlign = 'center';
-    ctx.fillStyle = rgba(INK_L, a); ctx.fillText('THE CORE APPS', CX + 3.5, 250);
+    if (x1 < 1) { ctx.fillStyle = rgba(INK_L, a * (1 - x1)); ctx.fillText('THE CORE APPS', CX + 3.5, 250 - 14 * x1); }
+    if (x2 > 0) { ctx.fillStyle = rgba(INK_L, a * x2); ctx.fillText('ALLISON FAMILY APPS', CX + 3.5, 250 + 14 * (1 - x2)); }
     ctx.textAlign = 'left'; spacing('0px');
   }
 
