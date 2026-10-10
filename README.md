@@ -15,4 +15,10 @@ To remake the MP4 (`launch/make-video/`): serve the repo (`python3 -m http.serve
 `node render.mjs film.mp4` (Playwright), `python3 music.py music.wav` (numpy), then
 `ffmpeg -i film.mp4 -i music.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest aos-launch-teaser.mp4`.
 
+- `welcome/`: launch day. A joke (take the "ch" out of chaos: aOS), then "Your wait is over" and the
+  welcome to the aOS family. `welcome/#name=Sarah&invite=CODE` greets them by name and its button opens
+  their own aOS invite; `welcome/#make` turns a name and an aOS invite link into that welcome link.
+  Everything after the # stays in the browser.
+  https://tomallison24.github.io/aos-teaser/welcome/
+
 Published with GitHub Pages. Add `?export` to either page to drive it frame by frame (`window.renderAt(t)`).

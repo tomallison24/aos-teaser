@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your wait is over · aOS</title>
+<meta name="description" content="Your wait is over. Welcome to the aOS family.">
+<meta name="theme-color" content="#040507">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Your wait is over">
+<meta property="og:description" content="Welcome to the aOS family.">
+<meta property="og:url" content="https://tomallison24.github.io/aos-teaser/welcome/">
+<meta property="og:image" content="https://tomallison24.github.io/aos-teaser/welcome/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tomallison24.github.io/aos-teaser/welcome/og.png">
+<meta name="referrer" content="no-referrer">
+<link rel="preload" href="../fonts/Inter.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  @font-face { font-family: Inter; src: url("../fonts/Inter.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  /* Launch day: the wait is over. It opens dark on a joke (take the "ch" out of chaos and
+     you're left with aOS), then turns to day in Sea glass with the welcome and, when the
+     link carries one, the person's own invite. One look on purpose: it moves from dark to
+     light itself, so every colour is set here. */
+  :root {
+    --night: #040507;
+    --ink-l: #F3F4F8;
+    --ink-d: #0B0B0F;
+    --muted-d: rgba(11,11,15,.6);
+    --pastel: linear-gradient(100deg, #6FA597 0%, #8193BC 34%, #BE918F 67%, #BC9C68 100%);
+    --pastel-d: linear-gradient(100deg, #A9D3C7 0%, #B9C6E0 34%, #E3C5C3 67%, #E9D6B4 100%);
+    --glass: rgba(255,255,255,.78);
+    --edge: rgba(11,11,15,.08);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, system-ui, sans-serif;
+    --ease: cubic-bezier(.2,.8,.2,1);
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body { background: #EEF1F7; color: var(--ink-d); font-family: var(--font); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+
+  /* the day behind everything, and the night over it until the punchline */
+  .sky { position: fixed; inset: 0; z-index: 0; background: linear-gradient(180deg, #E8EEF7, #F7EDE5); overflow: hidden; }
+  .sky i { position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; filter: blur(60px); opacity: .55; animation: drift 18s ease-in-out infinite alternate; }
+  .sky i:nth-child(1) { background: #A9D3C7; left: -25vmax; top: -20vmax; }
+  .sky i:nth-child(2) { background: #B9C6E0; right: -30vmax; top: 10vh; animation-delay: -6s; }
+  .sky i:nth-child(3) { background: #E3C5C3; left: -10vmax; bottom: -35vmax; animation-delay: -3s; }
+  .sky i:nth-child(4) { background: #E9D6B4; right: -25vmax; bottom: -30vmax; animation-delay: -9s; }
+  @keyframes drift { to { transform: translate(6vmax, -4vmax) scale(1.08); } }
+  .night { position: fixed; inset: 0; z-index: 1; background: radial-gradient(120% 90% at 50% 40%, #0A0D16 0%, var(--night) 70%); transition: opacity 1.4s ease; pointer-events: none; }
+  .day .night { opacity: 0; }
+
+  main { position: relative; z-index: 2; min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    padding: calc(env(safe-area-inset-top) + 32px) 20px calc(env(safe-area-inset-bottom) + 32px); }
+
+  /* the joke */
+  .joke { position: fixed; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 28px; pointer-events: none; transition: opacity .8s, transform 1s var(--ease); }
+  .day .joke { opacity: 0; transform: translateY(-30px); }
+  .q, .a { color: var(--ink-l); margin: 0; opacity: 0; transform: translateY(14px); transition: opacity .8s, transform .9s var(--ease); max-width: 520px; }
+  .q { font-size: clamp(24px, 6.4vw, 34px); font-weight: 600; letter-spacing: -.02em; line-height: 1.2; }
+  .a { margin-top: 14px; font-size: clamp(20px, 5.2vw, 26px); font-weight: 500; color: rgba(243,244,248,.62); }
+  .on { opacity: 1 !important; transform: none !important; }
+
+  /* "chaos": the c and h drop away, aos closes up, and becomes aOS */
+  .word { position: relative; margin-top: 44px; height: 1.2em; font-size: clamp(64px, 20vw, 112px); font-weight: 800; letter-spacing: -.04em; line-height: 1.15; opacity: 0; transition: opacity .6s; }
+  .word .lo { display: flex; justify-content: center; color: var(--ink-l); transition: opacity .7s, filter .7s; }
+  .word .lo span { display: inline-block; overflow: visible; max-width: 1em; transition: transform .9s cubic-bezier(.55,0,.75,.2), opacity .7s, max-width .8s var(--ease) .25s; }
+  .word.drop .lo .ch { transform: translateY(1.4em) rotate(-28deg); opacity: 0; max-width: 0; }
+  .word.drop .lo .ch + .ch { transform: translateY(1.6em) rotate(22deg); }
+  .word .up { position: absolute; inset: 0; display: flex; justify-content: center; opacity: 0; filter: blur(8px); transform: scale(.92); transition: opacity .8s, filter .8s, transform 1s var(--ease); }
+  .word .up b { font-weight: 800; background: linear-gradient(110deg, transparent 0 38%, rgba(255,255,255,.95) 48%, transparent 58% 100%), var(--pastel-d); background-size: 260% 100%, 100% 100%; background-position: 130% 0, 0 0;
+    -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+  .word.turn .lo { opacity: 0; filter: blur(8px); }
+  .word.turn .up { opacity: 1; filter: none; transform: none; }
+  .word.turn .up b { animation: shine 3.2s cubic-bezier(.45,0,.2,1) .6s infinite; }
+  .day .word .up b { background-image: linear-gradient(110deg, transparent 0 38%, rgba(255,255,255,.95) 48%, transparent 58% 100%), var(--pastel); }
+  @keyframes shine { 0% { background-position: 130% 0, 0 0; } 45%, 100% { background-position: -30% 0, 0 0; } }
+
+  /* the welcome */
+  .welcome { max-width: 560px; width: 100%; }
+  .welcome > * { opacity: 0; transform: translateY(16px); transition: opacity .8s, transform .9s var(--ease); }
+  .mark { font-size: 76px; font-weight: 800; letter-spacing: -.04em; line-height: 1; margin: 0 0 22px; background: var(--pastel); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+  h1 { margin: 0; font-size: clamp(36px, 10vw, 52px); font-weight: 800; letter-spacing: -.035em; line-height: 1.05; }
+  .hi { margin: 14px 0 0; font-size: clamp(20px, 5.4vw, 24px); font-weight: 600; letter-spacing: -.015em; line-height: 1.3; }
+  .hi em { font-style: normal; background: var(--pastel); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+  .sub { margin: 12px auto 0; max-width: 420px; font-size: 17px; line-height: 1.45; color: var(--muted-d); }
+  .apps { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 28px auto 0; max-width: 360px; }
+  .apps img { width: 52px; height: 52px; border-radius: 12px; box-shadow: 0 8px 18px -10px rgba(40,40,70,.45); opacity: 0; transform: translateY(14px) scale(.7); transition: opacity .5s, transform .7s cubic-bezier(.34,1.56,.64,1); }
+  .apps.on img { opacity: 1; transform: none; }
+  .card { margin: 30px auto 0; max-width: 420px; padding: 22px 20px 18px; border-radius: 28px; background: var(--glass); box-shadow: inset 0 0 0 1px var(--edge), 0 24px 60px -24px rgba(60,60,100,.35);
+    -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); }
+  .go { display: flex; align-items: center; justify-content: center; height: 56px; border-radius: 18px; font-size: 18px; font-weight: 700; color: var(--ink-d); text-decoration: none; background: var(--pastel); box-shadow: inset 0 1px 1px rgba(255,255,255,.5); }
+  .go:focus-visible { outline: 3px solid #8193BC; outline-offset: 3px; }
+  .note { margin: 12px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted-d); }
+  .again { margin-top: 18px; font: 600 14px/1 var(--font); color: var(--muted-d); background: none; border: 0; padding: 10px; cursor: pointer; }
+  .day .welcome > * { opacity: 1; transform: none; }
+  .day .welcome > :nth-child(2) { transition-delay: .25s; } .day .welcome > :nth-child(3) { transition-delay: .5s; } .day .welcome > :nth-child(4) { transition-delay: .7s; }
+  .day .welcome > :nth-child(5) { transition-delay: .9s; } .day .welcome > :nth-child(6) { transition-delay: 1.3s; } .day .welcome > :nth-child(7) { transition-delay: 1.6s; }
+  .skip { position: fixed; z-index: 4; top: calc(env(safe-area-inset-top) + 12px); right: 14px; font: 600 15px/1 var(--font); color: rgba(243,244,248,.7); background: rgba(255,255,255,.08); border: 0; border-radius: 999px; padding: 10px 15px; cursor: pointer; transition: opacity .4s; }
+  .day .skip { opacity: 0; pointer-events: none; }
+
+  /* confetti, in the apps' colours */
+  .bits { position: fixed; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
+  .bits i { position: absolute; left: 50%; top: 42%; width: 10px; height: 6px; border-radius: 2px; opacity: 0; }
+
+  /* making a link (welcome/#make): for the owner, not the person */
+  .maker { display: none; position: relative; z-index: 5; max-width: 460px; width: 100%; text-align: left; }
+  .making .maker { display: block; }
+  .making .joke, .making .welcome, .making .skip, .making .night { display: none; }
+  .maker h2 { margin: 0 0 6px; font-size: 26px; letter-spacing: -.02em; }
+  .maker p { margin: 0 0 14px; font-size: 15px; line-height: 1.45; color: var(--muted-d); }
+  .maker label { display: block; margin: 14px 0 6px; font-size: 14px; font-weight: 600; }
+  .maker input { width: 100%; height: 48px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--edge); background: rgba(255,255,255,.9); font: 16px var(--font); color: var(--ink-d); }
+  .maker .out { margin-top: 16px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.7); font-size: 13px; word-break: break-all; }
+  .maker .row { display: flex; gap: 10px; margin-top: 12px; }
+  .maker .row button { flex: 1; height: 48px; border-radius: 14px; border: 0; font: 700 16px var(--font); cursor: pointer; }
+  .maker .share { background: var(--pastel); color: var(--ink-d); }
+  .maker .copy { background: rgba(11,11,15,.07); color: var(--ink-d); }
+  .maker .err { color: #B42318; font-size: 14px; margin-top: 8px; min-height: 1em; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: .01s !important; transition-delay: 0s !important; }
+  }
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div class="night" aria-hidden="true"></div>
+<div class="bits" aria-hidden="true"></div>
+<button class="skip" type="button" id="skip">Skip</button>
+
+<section class="joke" aria-label="A joke">
+  <p class="q" id="q">How do you take the chaos out of family life?</p>
+  <p class="a" id="a">Drop the ch.</p>
+  <div class="word" id="word" aria-hidden="true">
+    <div class="lo"><span class="ch">c</span><span class="ch">h</span><span>a</span><span>o</span><span>s</span></div>
+    <div class="up"><b>aOS</b></div>
+  </div>
+</section>
+
+<main>
+  <div class="welcome" id="welcome">
+    <p class="mark" aria-hidden="true">aOS</p>
+    <h1>Your wait is over.</h1>
+    <p class="hi" id="hi">Welcome to the aOS <em>family.</em></p>
+    <p class="sub">Every app you&rsquo;ve been waiting for, made for us, with one family account.</p>
+    <div class="apps" id="apps" aria-label="The core apps: Mail, Calendar, News, Weather, Notes, Podcasts, Travel, Places, Fitness, Drinks and Home"></div>
+    <div class="card">
+      <a class="go" id="go" href="https://tomallison24-news.pages.dev/aOS/">Open aOS</a>
+      <p class="note" id="note">Your personal invite link makes your account. Ask for one if you don&rsquo;t have it yet.</p>
+    </div>
+    <button class="again" type="button" id="again">Play it again</button>
+  </div>
+
+  <form class="maker" id="maker" autocomplete="off">
+    <h2>Make a welcome link</h2>
+    <p>In aOS: Your account → Invite someone → Make an invite link → Copy. Paste it here with their name, then share the welcome link instead. It plays the welcome, then their button opens their invite.</p>
+    <label for="mName">Their name</label>
+    <input id="mName" maxlength="40" placeholder="Sarah">
+    <label for="mInvite">Their invite link from aOS</label>
+    <input id="mInvite" inputmode="url" placeholder="https://tomallison24-news.pages.dev/aOS/#invite=…" spellcheck="false" autocapitalize="off">
+    <div class="err" id="mErr" role="alert"></div>
+    <div class="out" id="mOut" hidden></div>
+    <div class="row"><button class="share" type="submit" id="mShare">Make and share</button><button class="copy" type="button" id="mCopy">Copy</button></div>
+  </form>
+</main>
+
+<script src="welcome.js"></script>
+</body>
+</html>
