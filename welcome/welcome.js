@@ -52,8 +52,7 @@
   }
   if (token) {
     $('go').href = AOS + '#invite=' + token;
-    $('go').textContent = 'Join the family';
-    $('note').textContent = 'Open this on your phone: Safari on iPhone, Chrome on Android. Face ID (or your fingerprint) makes your account. Your invite works once, within 24 hours of when it was sent.';
+    $('note').textContent = 'Next: Face ID (or your fingerprint) makes your account, then aOS shows you how to add it to your Home Screen. Open this on your phone, in Safari on iPhone or Chrome on Android. Your invite works once, within 24 hours of when it was sent.';
   }
   const apps = $('apps');
   APPS.forEach((id, i) => { const im = new Image(); im.src = `../launch/icons/${id}.webp`; im.alt = ''; im.style.transitionDelay = (1.1 + i * .05) + 's'; apps.appendChild(im); });
