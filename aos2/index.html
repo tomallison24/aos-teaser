@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>aOS 2 · Every app, one home</title>
+<meta name="description" content="The new aOS. Every app now opens inside aOS. Ask Ipsy across all your apps. aOS in your design, Vintage or Sea glass.">
+<meta name="theme-color" content="#241E1A">
+<meta property="og:type" content="website">
+<meta property="og:title" content="aOS 2 · Every app, one home">
+<meta property="og:description" content="The new aOS. Open aOS to see it.">
+<meta property="og:url" content="https://tomallison24.github.io/aos-teaser/aos2/">
+<meta property="og:image" content="https://tomallison24.github.io/aos-teaser/aos2/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tomallison24.github.io/aos-teaser/aos2/og.png">
+<link rel="preload" href="../fonts/Jost.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  /* Jost: a free Futura-like face, for the screens that don't have Futura (iPhones do) */
+  @font-face { font-family: Jost; src: url("../fonts/Jost.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+</style>
+</head>
+<body>
+<style>
+  /* The aOS 2 teaser, in the Vintage design (mid-century modern): a 1080x1920 stage scaled to
+     fit the phone, the ground drawn edge to edge behind it. It opens on walnut, like the earlier
+     teasers open in the dark, and turns to cream when the apps find their one home. One look on
+     purpose, so every colour is set here. */
+  :root {
+    --night: #241E1A;
+    --cream: #F4ECDD;
+    --card: #FBF5E9;
+    --text: #2B2522;
+    --mustard: #E3A72F;
+    --teal: #1F6F6B;
+    --orange: #D8572A;
+    --edge: rgba(43,37,34,.14);
+    --font: "Futura", "Futura-Medium", "Avenir Next", Jost, system-ui, sans-serif;
+    color-scheme: light;
+  }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--night); color: var(--text); font-family: var(--font); overflow: hidden;
+    -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
+  .bar { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); transform: translateX(-50%);
+    width: min(36vw, 160px); height: 3px; border-radius: 2px; background: rgba(140,120,100,.3); overflow: hidden; pointer-events: none; }
+  .bar i { display: block; height: 100%; width: 100%; background: var(--mustard); transform-origin: 0 50%; transform: scaleX(0); }
+  .pill { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 34px); transform: translateX(-50%);
+    font: 600 15px/1 var(--font); letter-spacing: .02em; color: var(--text); background: var(--card);
+    border: 0; box-shadow: inset 0 0 0 1.5px var(--edge); border-radius: 999px; padding: 12px 20px; cursor: pointer; }
+  .pill:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+  .pill.big { bottom: auto; top: 50%; transform: translate(-50%, -50%); font-size: 19px; padding: 17px 30px;
+    display: flex; align-items: center; gap: 10px; white-space: nowrap; background: var(--mustard); box-shadow: none; }
+  .pill svg { width: 15px; height: 15px; }
+  .snd { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 14px); right: 14px; width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center; padding: 0; color: var(--text); background: var(--card); border: 0;
+    box-shadow: inset 0 0 0 1.5px var(--edge); cursor: pointer; }
+  .snd svg { width: 20px; height: 20px; }
+  .snd:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+  .snd[hidden], .pill[hidden] { display: none; }
+  .export .bar, .export .pill, .export .snd { display: none !important; }
+</style>
+
+<canvas id="film" role="img" aria-label="aOS 2 teaser. Fourteen apps, each alone on a walnut ground. Fourteen homes: a little roof drops onto each one. Then they gather, flying into one rounded aOS card, and one roof drops over them all. Every app, one home. A phone shows aOS's Home: Ipsy at the top, Open now, Favorites and the Family apps. Weather is tapped and slides in from the right, with the aOS pill in its corner: every app now opens inside aOS. A swipe from the left edge and it slides back to Home, where it waits in Open now. Ipsy, the little stem cell, grows big: ask Ipsy across all your apps. Do any orders arrive while we're away? Ipsy thinks, reaching Calendar, Notes, Meals, Orders, Travel and News, and answers: yes, one, on Tuesday, day 2 of your trip. aOS in your design: the aOS icon flips from Vintage to Sea glass and back. Then the mark: aOS, and a 2 drops in. The new aOS. Every app, one home. Open aOS to see it."></canvas>
+<div class="bar" aria-hidden="true"><i id="progress"></i></div>
+<button class="pill" id="pill" type="button" hidden>Replay</button>
+<button class="snd" id="snd" type="button" aria-label="Mute" hidden></button>
+<audio id="music" src="music.mp3" preload="auto" playsinline></audio>
+
+<script>
+(() => {
+  'use strict';
+  const EXPORT = /export/.test(location.search);
+  if (EXPORT) document.documentElement.classList.add('export');
+  const DUR = 38, W0 = 1080, H0 = 1920, CX = 540, TAU = Math.PI * 2, DEG = Math.PI / 180;
+  const FAM = '"Futura", "Futura-Medium", "Avenir Next", Jost, system-ui, sans-serif';
+  const cv = document.getElementById('film');
+  let ctx = cv.getContext('2d');
+  const spacing = px => { if ('letterSpacing' in ctx) ctx.letterSpacing = px; };
+  const font = (w, s) => { ctx.font = `${w} ${s}px ${FAM}`; };
+
+  // ---------- small maths ----------
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const prog = (t, a, b) => clamp((t - a) / (b - a));
+  const ss = (t, a, b) => { const u = prog(t, a, b); return u * u * (3 - 2 * u); };
+  const eo = u => 1 - Math.pow(1 - u, 3);
+  const eio = u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+  const eback = u => { const c1 = 1.56, c3 = c1 + 1; return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2); };
+  const ebounce = u => {
+    const n = 7.5625, d = 2.75;
+    if (u < 1 / d) return n * u * u;
+    if (u < 2 / d) return n * (u -= 1.5 / d) * u + .75;
+    if (u < 2.5 / d) return n * (u -= 2.25 / d) * u + .9375;
+    return n * (u -= 2.625 / d) * u + .984375;
+  };
+  const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, u) => a.map((v, i) => v + (b[i] - v) * u);
+  const rgba = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+  let seed = 2026;
+  const rnd = () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+
+  // ---------- the Vintage colours (aOS/index.html, <style id="vintage">) ----------
+  const NIGHT = hex('#241E1A'), CREAM = hex('#F4ECDD'), CARD = hex('#FBF5E9'), TEXT = hex('#2B2522'), MUTED = hex('#5B4A3F');
+  const MUSTARD = hex('#E3A72F'), TEAL = hex('#1F6F6B'), TEAL_L = hex('#4FB3AB'), ORANGE = hex('#D8572A'), WALNUT = hex('#4A3426'), ON = hex('#FFF8EC');
+  const EDGE = 'rgba(43,37,34,.14)';
+  const GLASS_BG = hex('#EEF1F7'), GLASS = ['#A9D3C7', '#B9C6E0', '#E3C5C3', '#E9D6B4'].map(hex);
+
+  // ---------- the apps (aOS/app.js names; each icon's Vintage colour) ----------
+  const APPS = [
+    ['mail', 'Mail', '#1F6F6B'], ['calendar', 'Calendar', '#3F6E9A'], ['clock', 'Clock', '#2B4257'], ['news', 'News', '#7E8C34'],
+    ['weather', 'Weather', '#4F9AB0'], ['notes', 'Notes', '#55606B'], ['podcasts', 'Podcasts', '#7A4A8C'], ['travel', 'Travel', '#4B4FA3'],
+    ['places', 'Places', '#3E8E5A'], ['fitness', 'Fitness', '#4A3426'], ['drinks', 'Drinks', '#A8456E'], ['meals', 'Meals', '#8E3A2B'],
+    ['orders', 'Orders', '#D8572A'], ['house', 'Home', '#E3A72F'],
+  ].map(([id, name, c]) => ({ id, name, hue: hex(c) }));
+  const BY = Object.fromEntries(APPS.map(a => [a.id, a]));
+  const NAPPS = APPS.length;   // fourteen
+
+  // ======================================================================
+  // The film's clock (make-video/music.py keeps the same numbers)
+  // ======================================================================
+  const POP = APPS.map((_, k) => .6 + k * .15);          // each app appears, alone
+  const ROOF = APPS.map((_, k) => 4.6 + k * .08);        // a roof for each: fourteen homes
+  const ROOF_OFF = 8.0;                                  // the roofs lift away
+  const CARD_IN = 8.3;                                   // one home card
+  const FLY = APPS.map((_, k) => 8.6 + k * .07), FLIGHT = .75;
+  const BIG_ROOF = 10.35, BIG_ROOF_LAND = 10.6;          // one roof over them all
+  const WIPE0 = 10.4, WIPE1 = 11.15;                     // walnut turns to cream
+  const MORPH0 = 13.2, MORPH1 = 14.1;                    // the card becomes the phone's screen
+  const TAP = 15.4, OPEN0 = 15.5, OPEN1 = 16.1;          // Weather opens inside aOS
+  const SWIPE0 = 17.2, SWIPE1 = 17.8;                    // a swipe from the left edge: back to Home
+  const ONOW = 18.0;                                     // Weather waits in Open now
+  const IPSY0 = 20.6, IPSY1 = 21.4;                      // into Ipsy
+  const ASK = 22.3, THINK0 = 23.2, THINK1 = 25.5, ANSWER = 25.7, IPSY_OUT = 27.9;
+  const DESIGN0 = 28.4, FLIP1 = 29.4, FLIP2 = 30.4, DESIGN1 = 31.1;
+  const MARK0 = 31.3, TWO = 32.0, TWO_LAND = 32.0 + .7 / 2.75, END0 = 34.6;
+
+  // ---------- stage ----------
+  let DPR = 1, CW = W0, CH = H0, S = 1, OX = 0, OY = 0, L = 0, R = W0, TOP = 0, B = H0;
+  function resize() {
+    DPR = EXPORT ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+    CW = window.innerWidth; CH = window.innerHeight;
+    cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR);
+    S = Math.min(CW / W0, CH / H0); OX = (CW - W0 * S) / 2; OY = (CH - H0 * S) / 2;
+    L = -OX / S; R = W0 + OX / S; TOP = -OY / S; B = H0 + OY / S;
+  }
+  function rrPath(x, y, w, h, r, c = ctx) {
+    const [a, b, d, e] = Array.isArray(r) ? r : [r, r, r, r];
+    const m = v => Math.max(0, Math.min(v, w / 2, h / 2));
+    const ra = m(a), rb = m(b), rd = m(d), re = m(e);   // top-left, top-right, bottom-right, bottom-left
+    c.moveTo(x + ra, y); c.lineTo(x + w - rb, y); c.arcTo(x + w, y, x + w, y + rb, rb);
+    c.lineTo(x + w, y + h - rd); c.arcTo(x + w, y + h, x + w - rd, y + h, rd); c.lineTo(x + re, y + h);
+    c.arcTo(x, y + h, x, y + h - re, re); c.lineTo(x, y + ra); c.arcTo(x, y, x + ra, y, ra); c.closePath();
+  }
+  const rr = (x, y, w, h, r) => { ctx.beginPath(); rrPath(x, y, w, h, r); };
+  const disc = (x, y, r, fill) => { if (r <= 0) return; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fillStyle = fill; ctx.fill(); };
+  function pillBar(x, y, w, h, rot, fill) {     // the rotated pill of the atomic shapes
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); rr(-w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = fill; ctx.fill(); ctx.restore();
+  }
+  // the three little bars under every title: teal 28, mustard 14, an orange dot (6 high)
+  function bars(x, y, k, a = 1, grow = 1) {
+    if (a <= 0 || grow <= 0) return;
+    const ga = ctx.globalAlpha; ctx.globalAlpha = ga * a;
+    [[0, 28, TEAL], [34, 14, MUSTARD], [54, 8, ORANGE]].forEach(([dx, w, c], i) => {
+      const g = clamp(grow * 3 - i * .9);
+      if (g <= 0) return;
+      rr(x + dx * k, y, Math.max(6 * k, w * k * eo(g)), 6 * k, 3 * k); ctx.fillStyle = rgba(c); ctx.fill();
+    });
+    ctx.globalAlpha = ga;
+  }
+  // a line of text, shrunk to fit
+  function fit(text, w, size, max) {
+    font(w, size); const m = ctx.measureText(text).width;
+    if (m > max) { size = Math.floor(size * max / m); font(w, size); }
+    return size;
+  }
+
+  // ---------- the icons, masked once ----------
+  const ICON = {};
+  function loadIcons() {
+    const one = (id, hue, file) => new Promise(done => {
+      const c = document.createElement('canvas'); c.width = c.height = 256;
+      const g = c.getContext('2d'); g.beginPath(); rrPath(0, 0, 256, 256, 58, g); g.clip();
+      g.fillStyle = rgba(hue); g.fillRect(0, 0, 256, 256); ICON[id] = c;
+      const im = new Image();
+      im.onload = () => { g.drawImage(im, 0, 0, 256, 256); done(); };
+      im.onerror = () => done();
+      im.src = `icons/${file || id}.webp`;
+    });
+    return Promise.all([...APPS.map(a => one(a.id, a.hue)), one('aos', TEAL), one('aos-glass', hex('#8193BC'))]);
+  }
+  function icon(id, x, y, s, a = 1, rot = 0) {
+    if (a <= 0 || s <= 0) return;
+    const ga = ctx.globalAlpha; ctx.globalAlpha = ga * Math.min(1, a);
+    if (rot) { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.drawImage(ICON[id], -s / 2, -s / 2, s, s); ctx.restore(); }
+    else ctx.drawImage(ICON[id], x - s / 2, y - s / 2, s, s);
+    ctx.globalAlpha = ga;
+  }
+  // a little roof: a flat triangle, softly rounded
+  function roof(cx, baseY, w, h, col, a = 1) {
+    if (a <= 0) return;
+    const ga = ctx.globalAlpha; ctx.globalAlpha = ga * a;
+    ctx.beginPath(); ctx.moveTo(cx - w / 2, baseY); ctx.lineTo(cx, baseY - h); ctx.lineTo(cx + w / 2, baseY); ctx.closePath();
+    ctx.fillStyle = rgba(col); ctx.fill(); ctx.lineJoin = 'round'; ctx.lineWidth = w * .07; ctx.strokeStyle = rgba(col); ctx.stroke();
+    ctx.globalAlpha = ga;
+  }
+
+  // ======================================================================
+  // Ipsy: the stem cell (home/ipsy.js, its Vintage look), drawn in its own 200x200 box
+  // ======================================================================
+  const NI = 56;
+  const G = (th, c, w) => { const d = Math.atan2(Math.sin(th - c), Math.cos(th - c)); return Math.exp(-((d / w) ** 2)); };
+  const DEND = [-160, -115, -65, 150, 30], AMP = [34, 40, 36, 30, 62];
+  const STEM = Array.from({ length: NI }, () => 55);
+  const NEURON = Array.from({ length: NI }, (_, i) => { const th = i * TAU / NI; return 42 + DEND.reduce((s, a, j) => s + AMP[j] * G(th, a * DEG, j === 4 ? .14 : .17), 0); });
+  const TIP = DEND.map(a => Math.round((((a * DEG) % TAU) + TAU) % TAU / (TAU / NI)) % NI);
+  // ipsy: { x, y (where its middle goes), s (stage px per box unit), think 0..1, look [dx,dy], blink 0..1, talk 0..1, t }
+  function drawIpsy(o) {
+    const { x, y, s, think = 0, look = [0, 0], blink = 0, talk = 0, t = 0, a = 1 } = o;
+    if (a <= 0 || s <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s); ctx.translate(-100, -108);
+    const bob = Math.sin(t * TAU / 2.8) * 3;
+    ctx.beginPath(); ctx.ellipse(100, 186, 46 * (1 - bob / 30), 6, 0, 0, TAU); ctx.fillStyle = 'rgba(16,24,26,.13)'; ctx.fill();
+    ctx.translate(0, bob - 2);
+    // thinking: rings going out
+    if (think > 0) for (let i = 0; i < 2; i++) {
+      const u = ((t * .9 + i * .5) % 1);
+      ctx.beginPath(); ctx.arc(100, 108, 70 + 60 * u, 0, TAU); ctx.lineWidth = 3; ctx.strokeStyle = rgba(TEAL, .6 * (1 - u) * think); ctx.stroke();
+    }
+    const wob = i => { const th = i * TAU / NI; return 1 + (.022 * Math.sin(t * 2.6 + 2 * th) + .012 * Math.sin(t * 1.9 - 3 * th)) * (1 - think); };
+    const pts = STEM.map((r0, i) => { const r = lerp(r0, NEURON[i], think) * wob(i), th = i * TAU / NI; return [100 + r * Math.cos(th), 108 + r * Math.sin(th)]; });
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 0; i < NI; i++) {
+      const p0 = pts[(i - 1 + NI) % NI], p1 = pts[i], p2 = pts[(i + 1) % NI], p3 = pts[(i + 2) % NI];
+      ctx.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
+    }
+    ctx.closePath(); ctx.fillStyle = rgba(mix(MUSTARD, TEAL, think)); ctx.fill();
+    disc(128, 82, 13, rgba(TEXT, .12 * (1 - think)));
+    // the sparks at its tips while it thinks
+    if (think > .5) TIP.forEach((i, j) => { const on = Math.floor(t * 4 + j * .4) % 2; disc(pts[i][0], pts[i][1], 5, rgba(MUSTARD, on ? (think - .5) * 2 : .25)); });
+    const face = mix(TEXT, CARD, think);
+    ctx.save(); ctx.translate(look[0], look[1]);
+    const ey = Math.max(.08, 1 - blink);
+    [86, 114].forEach(ex => { ctx.beginPath(); ctx.ellipse(ex, 104, 6, 8.5 * ey, 0, 0, TAU); ctx.fillStyle = rgba(face); ctx.fill(); });
+    ctx.restore();
+    [72, 128].forEach(cx => { ctx.beginPath(); ctx.ellipse(cx, 120, 7, 4, 0, 0, TAU); ctx.fillStyle = rgba(mix(ORANGE, MUSTARD, think)); ctx.fill(); });
+    if (talk > .02) { ctx.beginPath(); ctx.ellipse(100, 123, 6, 1 + 4 * talk, 0, 0, TAU); ctx.fillStyle = rgba(face); ctx.fill(); }
+    else { ctx.beginPath(); ctx.moveTo(93, 120); ctx.quadraticCurveTo(100, 127, 107, 120); ctx.lineWidth = 3.2; ctx.lineCap = 'round'; ctx.strokeStyle = rgba(face); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  // ======================================================================
+  // The ground: walnut, then cream from the one home outward
+  // ======================================================================
+  const HOME_C = [540, 980];
+  function drawGround(t) {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const glass = ss(t, FLIP1, FLIP1 + .3) * (1 - ss(t, FLIP2, FLIP2 + .3));
+    ctx.fillStyle = rgba(t < WIPE1 ? NIGHT : mix(CREAM, GLASS_BG, glass)); ctx.fillRect(0, 0, CW, CH);
+    ctx.setTransform(DPR * S, 0, 0, DPR * S, DPR * OX, DPR * OY);
+    if (t >= WIPE0 && t < WIPE1) disc(HOME_C[0], HOME_C[1], 2400 * eio(prog(t, WIPE0, WIPE1)), rgba(CREAM));
+    if (glass > 0) {          // Sea glass: its soft colours drift in
+      GLASS.forEach((c, i) => {
+        const x = [L + 60, R - 80, L + 160, R - 120][i], y = [TOP + 300, TOP + 700, B - 520, B - 220][i];
+        const g = ctx.createRadialGradient(x, y, 0, x, y, 620);
+        g.addColorStop(0, rgba(c, .85 * glass)); g.addColorStop(1, rgba(c, 0));
+        ctx.fillStyle = g; ctx.fillRect(x - 620, y - 620, 1240, 1240);
+      });
+    }
+  }
+  // the atomic shapes in the top right, like every Vintage title (scaled up for the stage)
+  function drawAtoms(t) {
+    const a = ss(t, .1, .9) * (1 - ss(t, CARD_IN - .1, CARD_IN + .4)); if (a <= 0) return;
+    const k = 2.4, night = t < (WIPE0 + WIPE1) / 2 ? 1 : 0;
+    const drift = 8 * Math.sin(t * .5);
+    ctx.globalAlpha = a;
+    disc(R - 96, TOP + 120 + drift, 264 * eback(prog(t, .1, .9)), rgba(MUSTARD));
+    disc(R - 254, TOP + 312 - drift, 77 * eback(prog(t, .3, 1.1)), rgba(night ? TEAL_L : TEAL));
+    const pu = eback(prog(t, .5, 1.3));
+    pillBar(R - 192, TOP + 406, 288 * pu, 82 * pu, -18 * DEG, rgba(ORANGE));
+    ctx.globalAlpha = 1;
+  }
+
+  // ======================================================================
+  // 1-2. Fourteen apps, fourteen homes (0-8.3s), then one home (8.3-13.2s)
+  // ======================================================================
+  const SCAT = (() => {
+    const rows = [[165, 415, 665, 915], [290, 540, 790], [165, 415, 665, 915], [290, 540, 790]], ys = [690, 930, 1170, 1410];
+    const out = []; rows.forEach((xs, r) => xs.forEach(x => out.push([x + (rnd() - .5) * 50, ys[r] + (rnd() - .5) * 40, (rnd() - .5) * .16])));
+    // shuffle which app sits where, so they don't read like a grid
+    const order = [3, 9, 0, 12, 6, 1, 13, 4, 10, 7, 2, 11, 5, 8];
+    return APPS.map((_, k) => out[order[k]]);
+  })();
+  const GRIDN = 4, GI = 128, GG = 44, CARD_W = GRIDN * GI + (GRIDN - 1) * GG + 116, CARD_R = 64;
+  const CARD_RECT = [HOME_C[0] - CARD_W / 2, HOME_C[1] - CARD_W / 2, CARD_W, CARD_W];
+  const GRID = APPS.map((_, k) => {
+    const row = Math.floor(k / 4), col = row === 3 ? k - 12 + 1 : k % 4;
+    return [CARD_RECT[0] + 58 + GI / 2 + col * (GI + GG), CARD_RECT[1] + 58 + GI / 2 + row * (GI + GG)];
+  });
+  const ROOF_COL = [MUSTARD, ORANGE, CREAM, TEAL_L];
+  function drawLoneApps(t) {
+    if (t > MORPH0 + .5) return;
+    for (let k = 0; k < NAPPS; k++) {
+      const pop = prog(t, POP[k], POP[k] + .45); if (pop <= 0) continue;
+      const [sx, sy, srot] = SCAT[k], [gx, gy] = GRID[k];
+      const f = eio(prog(t, FLY[k], FLY[k] + FLIGHT));
+      const bob = 7 * Math.sin(t * 1.7 + k * 1.3) * (1 - f);
+      const arc = Math.sin(Math.PI * f) * 90 * (k % 2 ? 1 : -1);
+      const x = lerp(sx, gx, f) + arc * .4, y = lerp(sy, gy, f) - Math.abs(arc) + bob;
+      const land = prog(t, FLY[k] + FLIGHT, FLY[k] + FLIGHT + .35), squash = land > 0 && land < 1 ? 1 + .12 * Math.sin(Math.PI * land) * (1 - land) : 1;
+      const out = ss(t, MORPH0 + (k % 4) * .03, MORPH0 + .3 + (k % 4) * .03);
+      const size = lerp(140, GI, f) * eback(pop) * squash * (1 - .4 * out);
+      // the roof that makes it a home of its own
+      const ru = prog(t, ROOF[k], ROOF[k] + .42), off = eio(prog(t, ROOF_OFF + k * .012, ROOF_OFF + .38 + k * .012));
+      if (ru > 0 && off < 1) {
+        const w = 186, h = 78, base = y - size / 2 - 14 - 70 * (1 - eback(ru)) - 90 * off;
+        roof(x, base, w, h, ROOF_COL[k % 4], ss(ru, 0, .4) * (1 - off));
+      }
+      icon(APPS[k].id, x, y, size, ss(pop, 0, .3) * (1 - out), srot * (1 - f) + (1 - pop) * .4);
+    }
+  }
+  function drawHomeCard(t) {
+    if (t < CARD_IN || t > MORPH1 + .1) return;
+    const cu = prog(t, CARD_IN, CARD_IN + .55), m = eio(prog(t, MORPH0 + .1, MORPH1 - .1));
+    const sc = eback(cu);
+    const [x0, y0, w0, h0] = CARD_RECT, [x1, y1, w1, h1] = SCREEN;
+    let x = lerp(x0, x1, m), y = lerp(y0, y1, m), w = lerp(w0, w1, m), h = lerp(h0, h1, m), r = lerp(CARD_R, SCREEN_R, m);
+    // the phone's walnut body grows round it
+    const ba = ss(t, MORPH0 + .3, MORPH1);
+    if (ba > 0) { ctx.globalAlpha = ba; rr(x - 18, y - 18, w + 36, h + 36, r + 18); ctx.fillStyle = rgba(WALNUT); ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(sc, sc); ctx.globalAlpha = ss(cu, 0, .3);
+    rr(-w / 2, -h / 2, w, h, r); ctx.fillStyle = rgba(mix(CARD, CREAM, m)); ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = EDGE; ctx.stroke();
+    ctx.restore();
+    // one roof, over them all
+    const ru = prog(t, BIG_ROOF, BIG_ROOF_LAND), up = eio(prog(t, MORPH0, MORPH0 + .45));
+    if (ru > 0 && up < 1) {
+      const base = y0 - 16 - 260 * (1 - ebounce(ru)) - 500 * up;
+      // a chimney, because it's a home
+      ctx.globalAlpha = ss(ru, 0, .3) * (1 - up); rr(CX + 230, base - 205, 64, 120, 10); ctx.fillStyle = rgba(ORANGE); ctx.fill(); ctx.globalAlpha = 1;
+      roof(CX, base, 900, 250, MUSTARD, ss(ru, 0, .3) * (1 - up));
+    }
+  }
+
+  // ======================================================================
+  // 3. Every app, one home (13.2-20.6s): a phone with aOS's Home; Weather opens inside it
+  // ======================================================================
+  const PK = 1.55, SCREEN = [CX - 390 * PK / 2, 410, 390 * PK, 844 * PK], SCREEN_R = 46 * PK;
+  const HOME_FAVS = ['calendar', 'meals', 'weather', 'notes'], FAMILY = ['calendar', 'meals', 'notes', 'house'];
+  const IPSY_SLOT = [16 + 6 + 33, 162 + 39];   // the Ask Ipsy card's little Ipsy, in screen units
+  function label(text, x, y, a = 1) {           // the section labels: a mustard dot, small caps
+    ctx.globalAlpha = a; disc(x + 4.5, y - 4.5, 4.5, rgba(MUSTARD));
+    font(600, 12.5); spacing('2.2px'); ctx.fillStyle = rgba(MUTED); ctx.fillText(text, x + 16, y); spacing('0px'); ctx.globalAlpha = 1;
+  }
+  function statusBar(ink) {
+    font(600, 15); ctx.fillStyle = rgba(ink); ctx.textAlign = 'left'; ctx.fillText('9:41', 30, 33);
+    for (let i = 0; i < 4; i++) { rr(304 + i * 6, 29 - 3 - i * 2.4, 4, 4 + i * 2.4, 1); ctx.fill(); }
+    rr(336, 21, 26, 12, 3.5); ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(ink, .5); ctx.stroke(); rr(338, 23, 19, 8, 2); ctx.fill();
+  }
+  function drawHomeScreen(t, ipsyHere) {
+    // the ground and its atoms
+    ctx.fillStyle = rgba(CREAM); ctx.fillRect(0, 0, 390, 844);
+    disc(350, 50, 110, rgba(MUSTARD)); disc(284, 130, 32, rgba(TEAL)); pillBar(310, 169, 120, 34, -18 * DEG, rgba(ORANGE));
+    statusBar(TEXT);
+    ctx.textAlign = 'left';
+    font(600, 13); spacing('1.8px'); ctx.fillStyle = rgba(TEAL); ctx.fillText('aOS', 22, 76); spacing('0px');
+    font(600, 44); spacing('-1.5px'); ctx.fillStyle = rgba(TEXT); ctx.fillText('Home', 20, 120); spacing('0px');
+    bars(22, 134, 1);
+    // Ask Ipsy
+    rr(16, 162, 358, 78, 26); ctx.fillStyle = rgba(CARD); ctx.fill();
+    ctx.save(); ctx.clip(); disc(38, 201, 64, rgba(TEAL, .16)); ctx.restore();
+    rr(16, 162, 358, 78, 26); ctx.lineWidth = 1.5; ctx.strokeStyle = EDGE; ctx.stroke();
+    if (ipsyHere) drawIpsy({ x: IPSY_SLOT[0], y: IPSY_SLOT[1] + 2, s: .3, t, blink: blinkAt(t) });
+    font(600, 19); ctx.fillStyle = rgba(TEXT); ctx.fillText('Ask Ipsy', 98, 196);
+    font(500, 14); ctx.fillStyle = rgba(MUTED); ctx.fillText('About any of your apps', 98, 217);
+    font(500, 26); ctx.fillStyle = rgba(TEAL); ctx.fillText('›', 350, 210);
+    // Open now: the apps open inside aOS, the latest first
+    label('OPEN NOW', 22, 276);
+    const nu = eo(prog(t, ONOW, ONOW + .5));
+    let x = 16;
+    const chip = (id, cx, a, sc = 1) => {
+      font(600, 15); const w = 44 + ctx.measureText(BY[id].name).width + 16;
+      if (a > 0) {
+        ctx.save(); ctx.globalAlpha = a; ctx.translate(cx + w / 2, 312); ctx.scale(sc, sc); ctx.translate(-(cx + w / 2), -312);
+        rr(cx, 292, w, 40, 20); ctx.fillStyle = rgba(CARD); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = EDGE; ctx.stroke();
+        icon(id, cx + 22, 312, 28); ctx.fillStyle = rgba(TEXT); ctx.fillText(BY[id].name, cx + 44, 317); ctx.restore();
+      }
+      return w;
+    };
+    font(600, 15); const ww = 44 + ctx.measureText('Weather').width + 16;
+    if (nu > 0) chip('weather', 16, nu, lerp(.6, 1, nu));
+    x = 16 + (ww + 8) * nu;
+    x += chip('notes', x, 1) + 8; chip('calendar', x, 1);
+    // Favorites
+    label('FAVORITES', 22, 366);
+    HOME_FAVS.forEach((id, i) => {
+      const fx = 16 + i * 91.3, fy = 380;
+      const press = id === 'weather' ? 1 - .06 * Math.sin(Math.PI * prog(t, TAP - .1, TAP + .2)) : 1;
+      ctx.save(); ctx.translate(fx + 42, fy + 48); ctx.scale(press, press); ctx.translate(-(fx + 42), -(fy + 48));
+      rr(fx, fy, 84, 96, 22); ctx.fillStyle = rgba(CARD); ctx.fill();
+      ctx.save(); ctx.clip(); disc(fx + 84 + 4, fy - 4, 38, rgba(BY[id].hue, .22)); ctx.restore();
+      rr(fx, fy, 84, 96, 22); ctx.lineWidth = 1.5; ctx.strokeStyle = EDGE; ctx.stroke();
+      icon(id, fx + 42, fy + 38, 46);
+      font(600, 13); ctx.textAlign = 'center'; ctx.fillStyle = rgba(TEXT); ctx.fillText(BY[id].name, fx + 42, fy + 83); ctx.textAlign = 'left';
+      ctx.restore();
+    });
+    // the Family group
+    label('FAMILY', 22, 510);
+    rr(16, 524, 358, 4 * 54, 22); ctx.fillStyle = rgba(CARD); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = EDGE; ctx.stroke();
+    FAMILY.forEach((id, i) => {
+      const ry = 524 + i * 54;
+      if (i) { ctx.fillStyle = 'rgba(43,37,34,.10)'; ctx.fillRect(68, ry, 290, 1); }
+      icon(id, 44, ry + 27, 34);
+      font(600, 17); ctx.fillStyle = rgba(TEXT); ctx.fillText(BY[id].name, 72, ry + 33);
+      font(500, 22); ctx.fillStyle = rgba(MUTED, .6); ctx.fillText('›', 350, ry + 34);
+    });
+    // the dock: a walnut pill, a mustard pill on Home
+    rr(68, 772, 254, 50, 25); ctx.fillStyle = rgba(WALNUT); ctx.fill();
+    rr(73, 777, (254 - 10) / 3, 40, 20); ctx.fillStyle = rgba(MUSTARD); ctx.fill();
+    font(600, 12); spacing('.8px'); ctx.textAlign = 'center';
+    ['HOME', 'TODAY', 'SEARCH'].forEach((s, i) => { ctx.fillStyle = rgba(i ? CREAM : TEXT); ctx.fillText(s, 73 + (254 - 10) / 6 * (1 + 2 * i), 801); });
+    spacing('0px'); ctx.textAlign = 'left';
+  }
+  function drawWeather(t) {
+    const BLUE = BY.weather.hue;
+    ctx.fillStyle = rgba(BLUE); ctx.fillRect(0, 0, 390, 844);
+    disc(330, 150, 120, rgba(MUSTARD));                              // the sun, a flat disc
+    disc(214, 92, 26, rgba(TEAL)); pillBar(322, 318, 100, 28, -18 * DEG, rgba(ORANGE));
+    statusBar(ON);
+    font(600, 44); spacing('-1.5px'); ctx.fillStyle = rgba(ON); ctx.fillText('Weather', 20, 132); spacing('0px');
+    bars(22, 146, 1);
+    ctx.fillStyle = rgba(ON); font(500, 130); spacing('-6px'); ctx.fillText('72°', 14, 300); spacing('0px');
+    font(500, 19); ctx.fillStyle = rgba(ON, .9); ctx.fillText('Sunny all afternoon', 22, 336);
+    // the hours
+    rr(16, 364, 358, 128, 26); ctx.fillStyle = rgba(CARD); ctx.fill();
+    [['Now', 72], ['1 PM', 74], ['2 PM', 75], ['3 PM', 75], ['4 PM', 73]].forEach(([h, d], i) => {
+      const hx = 52 + i * 71.5; ctx.textAlign = 'center';
+      font(600, 13); ctx.fillStyle = rgba(MUTED); ctx.fillText(h, hx, 394);
+      disc(hx, 422, 11, rgba(MUSTARD));
+      font(600, 18); ctx.fillStyle = rgba(TEXT); ctx.fillText(d + '°', hx, 470);
+    });
+    ctx.textAlign = 'left';
+    // the days
+    rr(16, 508, 358, 4 * 52 + 12, 26); ctx.fillStyle = rgba(CARD); ctx.fill();
+    [['Today', 58, 76, .1], ['Thu', 61, 79, .2], ['Fri', 55, 70, 0], ['Sat', 60, 77, .15]].forEach(([d, lo, hi, o], i) => {
+      const dy = 546 + i * 52;
+      font(600, 17); ctx.fillStyle = rgba(TEXT); ctx.fillText(d, 34, dy);
+      font(500, 15); ctx.fillStyle = rgba(MUTED); ctx.fillText(lo + '°', 112, dy);
+      rr(150, dy - 9, 160, 8, 4); ctx.fillStyle = 'rgba(43,37,34,.08)'; ctx.fill();
+      rr(150 + 160 * o, dy - 9, 160 * ((hi - lo) / 24), 8, 4); ctx.fillStyle = rgba(i % 2 ? ORANGE : MUSTARD); ctx.fill();
+      font(600, 15); ctx.fillStyle = rgba(TEXT); ctx.fillText(hi + '°', 322, dy);
+    });
+  }
+  // "‹ aOS", floating over the app's top left corner
+  function backPill(a) {
+    if (a <= 0) return;
+    ctx.globalAlpha = a;
+    rr(12, 52, 80, 36, 18); ctx.fillStyle = rgba(CARD); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = EDGE; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(32, 61); ctx.lineTo(24, 70); ctx.lineTo(32, 79); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = rgba(TEAL); ctx.stroke();
+    font(600, 17); ctx.fillStyle = rgba(TEAL); ctx.textAlign = 'left'; ctx.fillText('aOS', 39, 76);
+    ctx.globalAlpha = 1;
+  }
+  // a fingertip: a soft walnut disc
+  function finger(x, y, a, press = 0) {
+    if (a <= 0) return;
+    disc(x, y, 24 * (1 - .12 * press), rgba(WALNUT, .32 * a));
+    ctx.beginPath(); ctx.arc(x, y, 24 * (1 - .12 * press), 0, TAU); ctx.lineWidth = 2; ctx.strokeStyle = rgba(ON, .7 * a); ctx.stroke();
+  }
+  const blinkAt = t => [16.3, 19.2, 22.0, 24.2, 26.7, 27.6].reduce((m, b) => Math.max(m, 1 - Math.abs(t - b) / .09), 0);
+  function drawPhone(t) {
+    if (t < MORPH0 + .2 || t > IPSY1 + .1) return;
+    const ui = ss(t, MORPH1 - .35, MORPH1 + .2);
+    // into Ipsy: the phone zooms in on the Ask Ipsy card and fades
+    const zu = eio(prog(t, IPSY0, IPSY1)), za = 1 - ss(t, IPSY0 + .15, IPSY1 - .1);
+    if (za <= 0) return;
+    const [sx, sy, sw, sh] = SCREEN, ipx = sx + IPSY_SLOT[0] * PK, ipy = sy + IPSY_SLOT[1] * PK;
+    ctx.save(); ctx.translate(ipx, ipy); ctx.scale(1 + 1.4 * zu, 1 + 1.4 * zu); ctx.translate(-ipx, -ipy); ctx.globalAlpha = za;
+    // the body: walnut, around the screen (drawHomeCard draws it while the card turns into the screen)
+    if (t >= MORPH1) { rr(sx - 18, sy - 18, sw + 36, sh + 36, SCREEN_R + 18); ctx.fillStyle = rgba(WALNUT); ctx.fill(); }
+    ctx.save(); rr(sx, sy, sw, sh, SCREEN_R); ctx.clip();
+    ctx.globalAlpha = za * ui; ctx.fillStyle = rgba(CREAM); ctx.fillRect(sx, sy, sw, sh); ctx.globalAlpha = za;
+    ctx.translate(sx, sy); ctx.scale(PK, PK);
+    if (ui > 0) {
+      const open = eio(prog(t, OPEN0, OPEN1)), back = eio(prog(t, SWIPE0, SWIPE1)), slide = open * (1 - back);
+      ctx.globalAlpha = za * ui;
+      ctx.save(); ctx.translate(-117 * slide, 0); drawHomeScreen(t, t < IPSY0); ctx.restore();
+      if (slide > 0) {
+        ctx.fillStyle = `rgba(36,30,26,${.22 * slide})`; ctx.fillRect(0, 0, 390, 844);
+        ctx.save(); ctx.translate(390 * (1 - slide), 0);
+        ctx.fillStyle = 'rgba(36,30,26,.18)'; ctx.fillRect(-6, 0, 6, 844);
+        drawWeather(t); ctx.restore();
+        backPill(ss(t, OPEN1 - .15, OPEN1 + .15) * (1 - ss(t, SWIPE0, SWIPE0 + .2)));
+      }
+      // the fingertip: a tap on Weather, then a swipe in from the left edge
+      const tapA = ss(t, TAP - .45, TAP - .2) * (1 - ss(t, TAP + .15, TAP + .35));
+      const fx = 16 + 2 * 91.3 + 42, fy = 428 + 60 * (1 - eo(prog(t, TAP - .45, TAP - .05)));
+      finger(fx, fy, tapA, Math.sin(Math.PI * prog(t, TAP - .08, TAP + .16)));
+      const rp = prog(t, TAP, TAP + .5);
+      if (rp > 0 && rp < 1) { ctx.beginPath(); ctx.arc(fx, 428, 24 + 40 * eo(rp), 0, TAU); ctx.lineWidth = 2.5; ctx.strokeStyle = rgba(TEAL, .6 * (1 - rp)); ctx.stroke(); }
+      const swA = ss(t, SWIPE0 - .35, SWIPE0 - .1) * (1 - ss(t, SWIPE1 - .05, SWIPE1 + .2));
+      finger(30 + 390 * back, 470, swA, .5);
+      ctx.globalAlpha = za * ui;
+      // the home bar
+      rr(128, 830, 134, 5, 2.5); ctx.fillStyle = rgba(slide > .5 ? ON : TEXT, .8); ctx.fill();
+    }
+    ctx.restore();
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  // shapes on the ground around the phone
+  function drawPhoneGround(t) {
+    const a = ss(t, MORPH0 + .3, MORPH1 + .2) * (1 - ss(t, IPSY0, IPSY0 + .4)); if (a <= 0) return;
+    const u = eback(prog(t, MORPH0 + .4, MORPH1 + .3));
+    ctx.globalAlpha = a;
+    disc(R - 90, 1500, 300 * u, rgba(MUSTARD));
+    disc(L + 120, 1100, 90 * u, rgba(TEAL));
+    pillBar(L + 150, 1780, 300 * u, 84 * u, -18 * DEG, rgba(ORANGE));
+    ctx.globalAlpha = 1;
+  }
+
+  // ======================================================================
+  // 4. Ipsy (20.6-28.4s): ask across all your apps
+  // ======================================================================
+  const IP = [540, 790], IPS = 2.5, ORB = 350;
+  const ORBIT = ['calendar', 'notes', 'meals', 'orders', 'travel', 'news'];
+  const RELEVANT = { orders: 1, travel: 1, calendar: 1 };
+  function ipsyState(t) {
+    const zu = eio(prog(t, IPSY0, IPSY1));
+    const from = [SCREEN[0] + IPSY_SLOT[0] * PK, SCREEN[1] + (IPSY_SLOT[1] + 2) * PK], s0 = .3 * PK;
+    const out = eio(prog(t, IPSY_OUT, IPSY_OUT + .5));
+    const think = ss(t, THINK0, THINK0 + .45) * (1 - ss(t, THINK1, THINK1 + .4));
+    const look = ss(t, ASK, ASK + .4) * (1 - ss(t, THINK0, THINK0 + .3));
+    const talk = t > ANSWER && t < ANSWER + 1.2 ? Math.abs(Math.sin((t - ANSWER) * 11)) * (1 - prog(t, ANSWER + .9, ANSWER + 1.2)) : 0;
+    return {
+      x: lerp(from[0], IP[0], zu), y: lerp(from[1], IP[1], zu) - 40 * out, s: lerp(s0, IPS, zu) * (1 - .9 * out),
+      think, look: [5 * look, 7 * look], blink: blinkAt(t), talk, t, a: 1 - ss(t, IPSY_OUT + .2, IPSY_OUT + .5),
+    };
+  }
+  function drawIpsyScene(t) {
+    if (t < IPSY0 || t > IPSY_OUT + .6) return;
+    const out = 1 - ss(t, IPSY_OUT, IPSY_OUT + .45);
+    // a cream disc behind Ipsy, and the shapes
+    const du = eback(prog(t, IPSY0 + .4, IPSY1 + .3));
+    ctx.globalAlpha = out;
+    disc(L - 10, 520, 150 * du, rgba(MUSTARD));
+    pillBar(R - 170, 1800, 260 * du, 74 * du, -18 * DEG, rgba(ORANGE));
+    disc(IP[0], IP[1], 300 * du, rgba(CARD));
+    ctx.beginPath(); ctx.arc(IP[0], IP[1], 300 * du, 0, TAU); ctx.lineWidth = 3; ctx.strokeStyle = EDGE; ctx.stroke();
+    // the apps Ipsy can reach, round it, and the threads it pulls
+    const think = ss(t, THINK0, THINK0 + .45);
+    ORBIT.forEach((id, j) => {
+      const at = THINK0 + .25 + j * .12, pu = prog(t, at, at + .4); if (pu <= 0) return;
+      const an = -Math.PI / 2 + j * TAU / ORBIT.length + .2 * Math.sin(t * .4);
+      const x = IP[0] + Math.cos(an) * ORB, y = IP[1] + Math.sin(an) * ORB;
+      const hi = ss(t, THINK0 + 1.4, THINK0 + 1.8), rel = RELEVANT[id] ? 1 : 0;
+      const a = out * (rel ? 1 : 1 - .55 * hi * (1 - ss(t, ANSWER + .6, ANSWER + 1.2)));
+      // a dashed thread, pulsing out from Ipsy
+      const th = think * (1 - ss(t, THINK1 + .2, THINK1 + .6)) * pu;
+      if (th > 0) {
+        ctx.save(); ctx.setLineDash([2, 18]); ctx.lineDashOffset = -t * 60; ctx.lineCap = 'round'; ctx.lineWidth = 8;
+        ctx.strokeStyle = rgba(rel ? ORANGE : TEAL, .75 * th * (rel ? 1 : 1 - .6 * hi));
+        ctx.beginPath(); ctx.moveTo(IP[0] + Math.cos(an) * 170, IP[1] + Math.sin(an) * 170); ctx.lineTo(x - Math.cos(an) * 80, y - Math.sin(an) * 80); ctx.stroke(); ctx.restore();
+      }
+      const size = 124 * eback(pu) * (1 + .14 * hi * rel);
+      if (rel && hi > 0) disc(x, y, size * .62 + 10, rgba(MUSTARD, .9 * hi * out));
+      icon(id, x, y, size, a * ss(pu, 0, .3));
+    });
+    ctx.globalAlpha = 1;
+  }
+  // speech bubbles
+  function bubble(lines, side, top, t0, dark) {
+    const a = ss(t0.t, t0.a, t0.a + .3) * (1 - ss(t0.t, IPSY_OUT, IPSY_OUT + .4)); if (a <= 0) return;
+    const pu = eback(prog(t0.t, t0.a, t0.a + .45));
+    const size = 50, lh = 66, padX = 44, padY = 34;
+    let fs = size; font(500, fs); const widest = Math.max(...lines.map(l => ctx.measureText(l).width));
+    if (widest > 820) { fs = Math.floor(fs * 820 / widest); font(500, fs); }
+    const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + padX * 2, h = padY * 2 + lh * (lines.length - 1) + fs * .78;
+    const x = side === 'right' ? 1000 - w : 80;
+    ctx.save(); ctx.globalAlpha = a;
+    const ox = side === 'right' ? x + w : x, oy = top + h;
+    ctx.translate(ox, oy); ctx.scale(pu, pu); ctx.translate(-ox, -oy);
+    rr(x, top, w, h, side === 'right' ? [48, 48, 12, 48] : [48, 48, 48, 12]);
+    ctx.fillStyle = rgba(dark ? WALNUT : CARD); ctx.fill();
+    if (!dark) { ctx.lineWidth = 3; ctx.strokeStyle = EDGE; ctx.stroke(); }
+    ctx.fillStyle = rgba(dark ? ON : TEXT); ctx.textAlign = 'left';
+    lines.forEach((l, i) => ctx.fillText(l, x + padX, top + padY + fs * .78 + i * lh));
+    ctx.restore();
+  }
+  function drawBubbles(t) {
+    if (t < ASK || t > IPSY_OUT + .5) return;
+    bubble(['Do any orders arrive', 'while we’re away?'], 'right', 1270, { t, a: ASK }, true);
+    // Ipsy's three dots while it thinks
+    const dotsA = ss(t, THINK0 + .2, THINK0 + .4) * (1 - ss(t, ANSWER - .2, ANSWER));
+    if (dotsA > 0) {
+      ctx.globalAlpha = dotsA; rr(80, 1500, 190, 104, [48, 48, 48, 12]); ctx.fillStyle = rgba(CARD); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = EDGE; ctx.stroke();
+      for (let i = 0; i < 3; i++) disc(130 + i * 45, 1552 - 8 * Math.max(0, Math.sin(t * 7 - i * .8)), 12, rgba(TEAL, .5 + .5 * Math.max(0, Math.sin(t * 7 - i * .8))));
+      ctx.globalAlpha = 1;
+    }
+    bubble(['Yes, one. It comes Tuesday,', 'day 2 of your trip.'], 'left', 1500, { t, a: ANSWER }, false);
+  }
+
+  // ======================================================================
+  // 5. aOS in your design (28.4-31.1s): Vintage or Sea glass
+  // ======================================================================
+  const DIC = [540, 860];
+  function drawDesign(t) {
+    if (t < DESIGN0 || t > DESIGN1 + .4) return;
+    const iu = prog(t, DESIGN0, DESIGN0 + .5), ou = eio(prog(t, DESIGN1 - .1, DESIGN1 + .3));
+    // the flip: the icon turns edge on, changes design, turns back
+    const f1 = prog(t, FLIP1 - .2, FLIP1 + .2), f2 = prog(t, FLIP2 - .2, FLIP2 + .2);
+    const flip = f1 > 0 && f1 < 1 ? Math.abs(Math.cos(Math.PI * f1)) : f2 > 0 && f2 < 1 ? Math.abs(Math.cos(Math.PI * f2)) : 1;
+    const glass = (t > FLIP1 && t < FLIP2) ? 1 : 0;
+    const s = 440 * eback(iu) * (1 - ou);
+    ctx.save(); ctx.translate(DIC[0], DIC[1] + 6 * Math.sin(t * 1.6)); ctx.scale(Math.max(.02, flip), 1);
+    if (!glass) { rr(-s / 2 + 14, -s / 2 + 22, s, s, s * .227); ctx.fillStyle = 'rgba(43,37,34,.12)'; ctx.fill(); }
+    else { ctx.shadowColor = 'rgba(64,62,100,.25)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 24; }
+    icon(glass ? 'aos-glass' : 'aos', 0, 0, s, ss(iu, 0, .3));
+    ctx.restore();
+    // the switch: Vintage | Sea glass
+    const sa = ss(t, DESIGN0 + .3, DESIGN0 + .6) * (1 - ss(t, DESIGN1 - .2, DESIGN1 + .1));
+    if (sa > 0) {
+      const w = 680, h = 116, x = CX - w / 2, y = 1240;
+      const pos = eio(prog(t, FLIP1 - .2, FLIP1 + .15)) * (1 - eio(prog(t, FLIP2 - .2, FLIP2 + .15)));
+      ctx.globalAlpha = sa;
+      rr(x, y, w, h, h / 2); ctx.fillStyle = rgba(WALNUT); ctx.fill();
+      rr(x + 8 + pos * (w / 2 - 8), y + 8, w / 2 - 8, h - 16, (h - 16) / 2); ctx.fillStyle = rgba(mix(MUSTARD, hex('#B9C6E0'), pos)); ctx.fill();
+      font(600, 44); ctx.textAlign = 'center';
+      ctx.fillStyle = rgba(mix(TEXT, CREAM, pos)); ctx.fillText('Vintage', x + w / 4 + 4, y + h / 2 + 15);
+      ctx.fillStyle = rgba(mix(CREAM, TEXT, pos)); ctx.fillText('Sea glass', x + w * 3 / 4 - 4, y + h / 2 + 15);
+      ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    }
+  }
+
+  // ======================================================================
+  // 6. The mark (31.3-34.6s) and the end card (34.6-38s)
+  // ======================================================================
+  const MK = { FS: 300, BY: 1000 };
+  function drawMark(t) {
+    if (t < MARK0) return;
+    const end = eio(prog(t, END0, END0 + .7));
+    const lift = -150 * end, msc = lerp(1, .86, end);
+    // the shapes behind it
+    ctx.globalAlpha = 1;
+    disc(L + 40, 420 + lift * .5 + 10 * Math.sin(t * .6), 280 * eback(prog(t, MARK0, MARK0 + .6)), rgba(MUSTARD));
+    disc(R - 130, 430 + lift * .5, 84 * eback(prog(t, MARK0 + .15, MARK0 + .7)), rgba(TEAL));
+    const pu = eback(prog(t, MARK0 + .3, MARK0 + .9));
+    pillBar(L + 230, 1560 - 10 * Math.sin(t * .6), 330 * pu, 92 * pu, -18 * DEG, rgba(ORANGE));
+    // aOS
+    const nu = prog(t, MARK0 + .1, MARK0 + .7), na = ss(nu, 0, .5);
+    ctx.save(); ctx.translate(CX, MK.BY - 100); ctx.scale(msc, msc); ctx.translate(-CX, -(MK.BY - 100) + lift / msc);
+    font(600, MK.FS); spacing(`${-.03 * MK.FS}px`); ctx.textAlign = 'left';
+    const w = ctx.measureText('aOS').width, sup = 160, gap = 14, total = w + gap + sup * .56, x0 = CX - total / 2;
+    ctx.globalAlpha = na; ctx.fillStyle = rgba(TEXT); ctx.fillText('aOS', x0, MK.BY + 60 * (1 - eo(nu)));
+    spacing('0px');
+    // the 2, dropping in
+    const du = prog(t, TWO, TWO + .7);
+    if (du > 0) {
+      font(600, sup); ctx.fillStyle = rgba(ORANGE); ctx.globalAlpha = ss(du, 0, .1);
+      ctx.fillText('2', x0 + w + gap, MK.BY - 150 - 700 * (1 - ebounce(du)));
+    }
+    ctx.globalAlpha = 1;
+    // the three little bars, big
+    bars(CX - 62 * 4.5 / 2, MK.BY + 70, 4.5, ss(t, TWO + .55, TWO + .7), prog(t, TWO + .55, TWO + 1.1));
+    ctx.restore();
+    // a burst of little shapes as the 2 lands
+    const bu = prog(t, TWO_LAND, TWO_LAND + .9);
+    if (bu > 0 && bu < 1) {
+      const px = x0 + w + gap + sup * .28, py = MK.BY - 150 - sup * .35;
+      for (let i = 0; i < 10; i++) {
+        const an = -Math.PI / 2 + (i - 4.5) * .32, r = 60 + 220 * eo(bu);
+        ctx.globalAlpha = 1 - bu; disc(px + Math.cos(an) * r, py + Math.sin(an) * r * .8, 10 * (1 - .5 * bu), rgba([MUSTARD, TEAL, ORANGE][i % 3])); ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  // ---------- the words ----------
+  // each: shown from a to b, its lines at ys; *words* in the accent colour
+  const WORDS = [
+    { a: 1.25, b: 4.35, lines: ['Fourteen *apps.*'], y: [1650], night: 1 },
+    { a: 4.75, b: 8.1, lines: ['Fourteen *homes.*'], y: [1650], night: 1 },
+    { a: 10.85, b: 13.25, lines: ['Every app, *one home.*'], y: [1650], size: 96 },
+    { a: 14.25, b: 17.35, lines: ['Every app now opens', 'inside *aOS.*'], y: [196, 292], size: 80 },
+    { a: 17.65, b: 20.5, lines: ['Swipe back to Home.', 'Apps *stay put.*'], y: [196, 292], size: 80 },
+    { a: 21.5, b: 27.95, lines: ['Ask *Ipsy*', 'across all your apps'], y: [196, 292], size: 80 },
+    { a: 28.6, b: 31.05, lines: ['aOS in *your design*'], y: [300], size: 88 },
+    { a: 32.75, b: 34.6, lines: ['The new *aOS*'], y: [1330], size: 96 },
+    { a: 35.1, b: 99, lines: ['Every app, one home'], y: [1210], size: 84 },
+  ];
+  const segs = s => s.split(/(\*[^*]+\*)/).filter(Boolean).map(p => p[0] === '*' ? { t: p.slice(1, -1), p: 1 } : { t: p });
+  function drawWords(t) {
+    for (const bt of WORDS) {
+      if (t < bt.a || t > bt.b) continue;
+      let size = bt.size || 104;
+      font(600, size); spacing((-.02 * size).toFixed(1) + 'px'); ctx.textAlign = 'left';
+      const widest = Math.max(...bt.lines.map(l => ctx.measureText(l.replace(/\*/g, '')).width));
+      if (widest > 940) { size = Math.floor(size * 940 / widest); font(600, size); spacing((-.02 * size).toFixed(1) + 'px'); }
+      const ink = bt.night ? CREAM : TEXT, acc = bt.night ? MUSTARD : ORANGE;
+      bt.lines.forEach((line, li) => {
+        const tin = bt.a + li * .14, out = ss(t, bt.b - .35, bt.b);
+        const al = ss(t, tin, tin + .5) * (1 - out); if (al <= 0) return;
+        const dy = 30 * (1 - eo(prog(t, tin, tin + .7))) - 16 * out;
+        const sg = segs(line), ws = sg.map(s => ctx.measureText(s.t).width);
+        let x = CX - ws.reduce((a, b) => a + b, 0) / 2;
+        ctx.globalAlpha = al;
+        sg.forEach((s, i) => { ctx.fillStyle = rgba(s.p ? acc : ink); ctx.fillText(s.t, x, bt.y[li] + dy); x += ws[i]; });
+        ctx.globalAlpha = 1;
+      });
+    }
+    spacing('0px');
+  }
+  // the end card's last line, a teal pill
+  function drawOpen(t) {
+    const a = ss(t, 35.45, 35.85); if (a <= 0) return;
+    const pu = eback(prog(t, 35.45, 36.0));
+    const fs = fit('Open aOS to see it', 600, 54, 700), w = ctx.measureText('Open aOS to see it').width + 120, h = 124, y = 1320;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(CX, y + h / 2); ctx.scale(pu, pu); ctx.translate(-CX, -(y + h / 2));
+    rr(CX - w / 2, y, w, h, h / 2); ctx.fillStyle = rgba(TEAL); ctx.fill();
+    ctx.fillStyle = rgba(ON); ctx.textAlign = 'center'; ctx.fillText('Open aOS to see it', CX, y + h / 2 + fs * .35);
+    ctx.restore(); ctx.textAlign = 'left';
+  }
+
+  // ---------- one frame ----------
+  function render(t) {
+    t = clamp(t, 0, DUR);
+    ctx.globalAlpha = 1;
+    drawGround(t);
+    drawAtoms(t);
+    drawPhoneGround(t);
+    drawHomeCard(t);
+    drawLoneApps(t);
+    drawPhone(t);
+    drawIpsyScene(t);
+    if (t >= IPSY0 && t < IPSY_OUT + .6) drawIpsy(ipsyState(t));
+    drawBubbles(t);
+    drawDesign(t);
+    drawMark(t);
+    drawWords(t);
+    drawOpen(t);
+    document.body.style.background = rgba(t < WIPE1 ? NIGHT : CREAM);
+  }
+
+  // the link preview (1200x630), for make-video/render.mjs
+  function renderOG(c) {
+    const keep = ctx; ctx = c.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = rgba(CREAM); ctx.fillRect(0, 0, 1200, 630);
+    disc(1190, 640, 230, rgba(MUSTARD)); disc(640, 70, 46, rgba(TEAL));
+    pillBar(150, 585, 230, 62, -18 * DEG, rgba(ORANGE));
+    // one home: a card of apps under one roof
+    const cx = 920, cw = 400, chh = 280, cy = 250;
+    roof(cx, cy - 14, 470, 120, MUSTARD);
+    rr(cx - cw / 2, cy, cw, chh, 40); ctx.fillStyle = rgba(CARD); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = EDGE; ctx.stroke();
+    ['weather', 'notes', 'calendar', 'meals', 'orders', 'house'].forEach((id, i) => icon(id, cx - 120 + (i % 3) * 120, cy + 32 + 48 + Math.floor(i / 3) * 120, 96));
+    font(600, 176); spacing('-5px'); ctx.textAlign = 'left'; ctx.fillStyle = rgba(TEXT);
+    const w = ctx.measureText('aOS').width; ctx.fillText('aOS', 72, 250); spacing('0px');
+    font(600, 94); ctx.fillStyle = rgba(ORANGE); ctx.fillText('2', 72 + w + 10, 158);
+    bars(78, 286, 2.8);
+    fit('Every app, one home', 600, 60, 560); spacing('-1px'); ctx.fillStyle = rgba(TEXT); ctx.fillText('Every app, one home', 72, 410); spacing('0px');
+    fit('The new aOS. Open aOS to see it.', 500, 32, 560); ctx.fillStyle = rgba(MUTED); ctx.fillText('The new aOS. Open aOS to see it.', 74, 462);
+    ctx = keep;
+  }
+
+  // ---------- playback: the film follows the music's clock while it plays ----------
+  const bar = document.getElementById('progress'), pill = document.getElementById('pill');
+  const snd = document.getElementById('snd'), music = document.getElementById('music');
+  const PLAY_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9.5-5.5z" fill="currentColor"/></svg>';
+  const SPEAKER = on => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/>${on ? '<path d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/>' : '<path d="M16 9.5l5 5M21 9.5l-5 5"/>'}</svg>`;
+  let t0 = 0, held = 0, playing = false, raf = 0;
+  const now = () => performance.now() / 1000;
+  const setPill = mode => {
+    pill.classList.toggle('big', mode === 'start');
+    pill.innerHTML = mode === 'start' ? `${PLAY_ICON}<span>Play with sound</span>` : mode;
+    pill.dataset.mode = mode; pill.hidden = false;
+  };
+  const paintSnd = () => { snd.innerHTML = SPEAKER(!music.muted); snd.setAttribute('aria-label', music.muted ? 'Sound on' : 'Mute'); };
+  function tick() {
+    // keep in step with the music; if it couldn't seek (or stalled), the film keeps its own time
+    if (!music.paused && !music.ended && music.currentTime > 0 && Math.abs(now() - t0 - music.currentTime) < .75) t0 = now() - music.currentTime;
+    const t = now() - t0;
+    render(t); bar.style.transform = `scaleX(${clamp(t / DUR)})`;
+    if (t >= DUR) { playing = false; held = DUR; music.pause(); setPill('Replay'); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play(from = 0) {
+    cancelAnimationFrame(raf); t0 = now() - from; playing = true; pill.hidden = true;
+    try { music.currentTime = from; const p = music.play(); if (p) p.catch(() => {}); } catch (e) { /* the film plays on without it */ }
+    snd.hidden = false; paintSnd();
+    raf = requestAnimationFrame(tick);
+  }
+  function pause() { if (!playing) return; cancelAnimationFrame(raf); held = now() - t0; playing = false; music.pause(); setPill('Play'); }
+  pill.addEventListener('click', e => { e.stopPropagation(); play(pill.dataset.mode === 'Play' ? held : 0); });
+  snd.addEventListener('click', e => { e.stopPropagation(); music.muted = !music.muted; paintSnd(); });
+  cv.addEventListener('click', () => { if (playing) pause(); else if (pill.dataset.mode === 'Play') play(held); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('resize', () => { resize(); if (!playing) render(held); });
+
+  async function start() {
+    resize();
+    try {
+      await Promise.race([
+        Promise.all([...['600 80px Jost', '500 40px Jost'].map(f => document.fonts.load(f, 'aOS Every app, one home 72°')), loadIcons()]),
+        new Promise(r => setTimeout(r, 3000)),
+      ]);
+    } catch (e) { /* the system fonts and plain tiles still draw */ }
+    if (EXPORT) { window.renderAt = render; window.renderOG = renderOG; render(0); window.__ready = true; return; }
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { held = DUR; render(DUR); setPill('Replay'); return; }
+    render(0); setPill('start');   // sound needs a tap first
+  }
+  start();
+})();
+</script>
+</body>
+</html>
